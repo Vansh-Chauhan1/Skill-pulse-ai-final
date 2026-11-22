@@ -1,62 +1,59 @@
-import joblib
-import pandas as pd
+def predict_skill_gap(demand: float, available_workers: float):
+    """
+    Calculate the current workforce skill gap and classify it
+    as Shortage, Surplus, or Balanced.
+    """
 
-from pathlib import Path
+    if demand < 0:
+        raise ValueError("Demand cannot be negative.")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_FILE = BASE_DIR / "ml" / "skill_gap_model.pkl"
+    if available_workers < 0:
+        raise ValueError("Available workers cannot be negative.")
 
-
-def load_model():
-
-    if not MODEL_FILE.exists():
-        raise FileNotFoundError(
-            "Trained model not found. Run train_model.py first."
-        )
-
-    return joblib.load(MODEL_FILE)
-
-
-def predict_skill_gap(demand, available_workers):
-
-    model = load_model()
-
-    # Prepare input features
-    input_data = pd.DataFrame({
-        "demand": [demand],
-        "available_workers": [available_workers]
-    })
-
-    # Predict skill-gap category
-    prediction = model.predict(input_data)[0]
-
-    # Calculate actual skill gap
+    # Calculate workforce gap
     skill_gap = demand - available_workers
 
-    gap_percentage = (
-        (skill_gap / demand) * 100
-        if demand > 0 else None
-    )
+    # Classify based on the mathematical result
+    if skill_gap > 0:
+        status = "Shortage"
+
+    elif skill_gap < 0:
+        status = "Surplus"
+
+    else:
+        status = "Balanced"
+
+    # Calculate gap percentage
+    if demand > 0:
+        gap_percentage = (skill_gap / demand) * 100
+    else:
+        gap_percentage = None
 
     return {
         "demand": demand,
         "available_workers": available_workers,
         "skill_gap": skill_gap,
         "gap_percentage": gap_percentage,
-        "predicted_status": prediction
+        "predicted_status": status
     }
 
 
+# Test the prediction function independently
 if __name__ == "__main__":
 
-    result = predict_skill_gap(
-        demand=10000,
-        available_workers=7000
-    )
+    test_cases = [
+        (10000, 7000),
+        (6000, 7000),
+        (8000, 8000)
+    ]
 
     print("\n========== SKILLPULSE AI PREDICTION ==========")
 
-    for key, value in result.items():
-        print(f"{key}: {value}")
+    for demand, workers in test_cases:
+        result = predict_skill_gap(demand, workers)
+
+        print("\n--------------------------------")
+        for key, value in result.items():
+            print(f"{key}: {value}")
 
     print("\n========== PREDICTION COMPLETE ==========")

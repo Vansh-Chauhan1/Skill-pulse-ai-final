@@ -28,3 +28,17 @@ export const getSkillGaps = async () => {
 };
 
 export default API;
+
+export const getPrediction = async (
+  demand: number,
+  available_workers: number
+) => {
+  const response = await API.get("/api/predict", {
+    params: {
+      demand,
+      available_workers,
+    },
+  });
+
+  return response.data;
+};

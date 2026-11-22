@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from ml.predictor import predict_skill_gap
 
 from services.skill_gap import (
     calculate_skill_gaps,
@@ -20,11 +21,14 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://localhost:5175",
     "http://127.0.0.1:5174",
     "http://127.0.0.1:5175"
 ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -104,3 +108,13 @@ def get_surpluses():
     df = identify_surpluses()
 
     return df.to_dict(orient="records")
+
+@app.get("/api/predict")
+def predict(
+    demand: float,
+    available_workers: float
+):
+    return predict_skill_gap(
+        demand=demand,
+        available_workers=available_workers
+    )
