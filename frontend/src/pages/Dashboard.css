@@ -1,0 +1,92 @@
+.dashboard {
+  min-height: 100vh;
+  background: #0b1120;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.dashboard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 5%;
+  border-bottom: 1px solid #263449;
+}
+
+.dashboard-logo {
+  color: #38bdf8;
+  font-size: 24px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 30px;
+}
+
+.nav-links a {
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.dashboard-content {
+  padding: 40px 5%;
+}
+
+.dashboard-header {
+  margin-bottom: 30px;
+}
+
+.dashboard-header h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.dashboard-header p {
+  color: #94a3b8;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: #151f32;
+  border: 1px solid #263449;
+  padding: 25px;
+  border-radius: 12px;
+}
+
+.stat-card h3 {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.stat-card h2 {
+  font-size: 28px;
+  margin-top: 15px;
+}
+
+.map-section {
+  background: #151f32;
+  padding: 25px;
+  border: 1px solid #263449;
+  border-radius: 16px;
+}
+
+.map-header {
+  margin-bottom: 20px;
+}
+
+.map-header p {
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
