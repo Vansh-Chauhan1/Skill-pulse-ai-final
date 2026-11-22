@@ -85,6 +85,15 @@
   margin-top: 8px;
 }
 
+.india-state:hover,
+.india-state:active {
+  fill: #93c5fd;
+}
+
+.india-state:focus:not(:focus-visible) {
+  outline: none;
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;

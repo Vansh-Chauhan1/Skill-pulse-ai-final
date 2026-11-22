@@ -1,0 +1,13 @@
+state,industry,skill,demand,available_workers,skill_gap,gap_percentage,gap_status
+Maharashtra,IT,Python,15000,10000,5000,33.33333333333333,Shortage
+Maharashtra,Manufacturing,Machine Operation,12000,14000,-2000,-16.666666666666664,Surplus
+Karnataka,IT,Java,18000,12000,6000,33.33333333333333,Shortage
+Karnataka,Healthcare,Nursing,9000,6000,3000,33.33333333333333,Shortage
+Tamil Nadu,Manufacturing,Machine Operation,11000,8000,3000,27.27272727272727,Shortage
+Tamil Nadu,IT,Data Science,14000,9000,5000,35.714285714285715,Shortage
+Chhattisgarh,Mining,Mining Technology,7000,4000,3000,42.857142857142854,Shortage
+Chhattisgarh,IT,Python,5000,2000,3000,60.0,Shortage
+Delhi,IT,Cybersecurity,13000,7000,6000,46.15384615384615,Shortage
+Delhi,Finance,Financial Analysis,8000,7500,500,6.25,Shortage
+Uttar Pradesh,Agriculture,Agricultural Technology,10000,6000,4000,40.0,Shortage
+Uttar Pradesh,Manufacturing,Quality Control,9000,11000,-2000,-22.22222222222222,Surplus
