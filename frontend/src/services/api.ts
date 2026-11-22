@@ -42,3 +42,7 @@ export const getPrediction = async (
 
   return response.data;
 };
+export const getIndustries = async () => {
+  const response = await API.get("/api/industries");
+  return response.data;
+};
