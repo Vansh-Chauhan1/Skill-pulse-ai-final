@@ -299,3 +299,110 @@ footer p {
     flex-direction: column;
   }
 }
+/* Employment Dashboard */
+
+.employment-dashboard {
+  padding: 80px 8%;
+  background: #080d1a;
+}
+
+.dashboard-heading {
+  margin-bottom: 40px;
+}
+
+.dashboard-heading span {
+  color: #38bdf8;
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+
+.dashboard-heading h2 {
+  font-size: 34px;
+  margin: 15px 0;
+}
+
+.dashboard-heading p {
+  color: #94a3b8;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 35px;
+}
+
+.stat-card {
+  padding: 25px;
+  background: #111e32;
+  border: 1px solid #26364d;
+  border-radius: 12px;
+}
+
+.stat-card p {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.stat-card h2 {
+  color: #38bdf8;
+  font-size: 28px;
+  margin-top: 15px;
+}
+
+.chart-container,
+.state-table-container {
+  background: #111e32;
+  border: 1px solid #26364d;
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.chart-container h3,
+.state-table-container h3 {
+  margin-bottom: 25px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+th,
+td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid #26364d;
+}
+
+th {
+  color: #38bdf8;
+}
+
+td {
+  color: #cbd5e1;
+}
+
+.data-disclaimer {
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

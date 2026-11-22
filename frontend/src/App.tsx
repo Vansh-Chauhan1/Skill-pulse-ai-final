@@ -1,4 +1,6 @@
 import "./App.css";
+import EmploymentDashboard from "./components/EmploymentDashboard";
+import BackendStatus from "./components/BackendStatus";
 
 function App() {
   return (
@@ -19,6 +21,7 @@ function App() {
         <button className="nav-button">
           Explore Dashboard →
         </button>
+        <BackendStatus />
       </nav>
 
       {/* Hero Section */}
