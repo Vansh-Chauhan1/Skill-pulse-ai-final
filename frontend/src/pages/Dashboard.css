@@ -934,3 +934,92 @@
   }
 
 }
+
+/* ==========================================
+   OFFICIAL PLFS WPR MAP
+========================================== */
+
+.wpr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 15px;
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 10px;
+}
+
+.wpr-legend > strong {
+  display: block;
+  width: 100%;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.wpr-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.wpr-legend-swatch {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border-radius: 3px;
+}
+
+.wpr-primary {
+  margin-top: 20px;
+}
+
+.wpr-primary p {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.wpr-primary h1 {
+  font-size: 38px;
+  margin: 12px 0;
+}
+
+.wpr-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.wpr-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  background: #151f32;
+  border: 1px solid #263449;
+  border-radius: 8px;
+}
+
+.wpr-details span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.wpr-details strong {
+  color: #ffffff;
+  font-size: 17px;
+}
+
+@media (max-width: 600px) {
+  .wpr-legend {
+    gap: 10px;
+  }
+
+  .wpr-details {
+    grid-template-columns: 1fr;
+  }
+}

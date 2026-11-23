@@ -1,11 +1,11 @@
 import json
-
 from services.official_data import (
     load_plfs_state_wpr,
     load_plfs_industry_distribution,
     load_ncs_sector_vacancies,
     load_ncs_qualification_vacancies,
     load_ncs_summary,
+    load_plfs_monthly_cws_wpr,
 )
 
 from fastapi import FastAPI
@@ -184,5 +184,11 @@ def official_ncs_qualification_vacancies():
 def official_ncs_summary():
 
     df = load_ncs_summary()
+
+    return dataframe_to_records(df)
+@app.get("/api/official/plfs/monthly-cws-wpr")
+def official_plfs_monthly_cws_wpr():
+
+    df = load_plfs_monthly_cws_wpr()
 
     return dataframe_to_records(df)

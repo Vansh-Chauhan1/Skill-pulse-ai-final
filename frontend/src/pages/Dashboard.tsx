@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ResponsiveContainer,
@@ -17,106 +12,196 @@ import {
 } from "recharts";
 
 import "./Dashboard.css";
-
 import IndiaSkillMap from "../components/IndiaSkillMap";
 
 import {
-  getPrediction,
-  getStates,
-  getIndustries,
-  getSkills,
-  getSkillGaps,
+  getOfficialPlfsStateWpr,
+  getOfficialPlfsIndustryDistribution,
+  getOfficialNcsSectorVacancies,
+  getOfficialNcsQualificationVacancies,
+  getOfficialNcsSummary,
 } from "../services/api";
 
-// ==========================================
+// ======================================================
 // TYPES
-// ==========================================
+// ======================================================
 
-type PredictionResult = {
-  demand: number;
-  available_workers: number;
-  skill_gap: number;
-  gap_percentage: number | null;
-  predicted_status: string;
+type NumericValue = number | string | null | undefined;
+
+type PlfsStateWpr = {
+  state_ut: string;
+  survey_period: string;
+  age_group: string;
+  status_approach: string;
+
+  rural_male_wpr_pct: NumericValue;
+  rural_female_wpr_pct: NumericValue;
+  rural_person_wpr_pct: NumericValue;
+
+  urban_male_wpr_pct: NumericValue;
+  urban_female_wpr_pct: NumericValue;
+  urban_person_wpr_pct: NumericValue;
+
+  rural_urban_male_wpr_pct: NumericValue;
+  rural_urban_female_wpr_pct: NumericValue;
+  rural_urban_person_wpr_pct: NumericValue;
+
+  source_table?: string;
+  source_page?: string;
+  source_url?: string;
 };
 
-type StateData = {
-  state: string;
-  total_demand: number;
-  total_workers: number;
-  total_gap: number;
-  gap_percentage: number;
+type PlfsIndustry = {
+  survey_period: string;
+  industry_broad_division_nic08: string;
+
+  rural_male_pct: NumericValue;
+  rural_female_pct: NumericValue;
+  rural_person_pct: NumericValue;
+
+  urban_male_pct: NumericValue;
+  urban_female_pct: NumericValue;
+  urban_person_pct: NumericValue;
+
+  rural_urban_male_pct: NumericValue;
+  rural_urban_female_pct: NumericValue;
+  rural_urban_person_pct: NumericValue;
+
+  indicator?: string;
+  source_statement?: string;
+  source_page?: string;
+  source_url?: string;
 };
 
-type IndustryData = {
-  industry: string;
-  total_demand: number;
-  total_workers: number;
-  total_gap: number;
+type NcsSector = {
+  ncs_sector_as_published: string;
+  vacancies_fy2022_23: NumericValue;
+  vacancies_fy2023_24: NumericValue;
+  reported_percent_change: NumericValue;
+  source_report?: string;
+  source_url?: string;
 };
 
-type SkillData = {
-  skill: string;
-  total_demand: number;
+type NcsQualification = {
+  qualification_as_published: string;
+  vacancies_fy2022_23: NumericValue;
+  vacancies_fy2023_24: NumericValue;
+  reported_percent_change: NumericValue;
+  source_report?: string;
+  source_url?: string;
 };
 
-type SkillGapRecord = {
-  state: string;
-  industry: string;
-  skill: string;
-  demand: number;
-  available_workers: number;
-  skill_gap: number;
-  gap_percentage: number;
+type NcsSummary = {
+  metric_as_published: string;
+  value_fy2022_23: NumericValue;
+  value_fy2023_24: NumericValue;
+  reported_percent_change: NumericValue;
+  source_report?: string;
+  source_url?: string;
 };
 
-type StateSortOption =
-  | "total_gap"
-  | "gap_percentage"
-  | "total_demand"
-  | "state";
+type StateSortOption = "wpr_desc" | "wpr_asc" | "name";
 
-// ==========================================
+// ======================================================
+// HELPER FUNCTIONS
+// ======================================================
+
+function toNumber(value: NumericValue): number | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatNumber(value: NumericValue): string {
+  const parsed = toNumber(value);
+
+  if (parsed === null) {
+    return "—";
+  }
+
+  return parsed.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatPercentage(value: NumericValue): string {
+  const parsed = toNumber(value);
+
+  if (parsed === null) {
+    return "—";
+  }
+
+  return `${parsed.toFixed(1)}%`;
+}
+
+function formatChange(value: NumericValue): string {
+  const parsed = toNumber(value);
+
+  if (parsed === null) {
+    return "—";
+  }
+
+  return `${parsed > 0 ? "+" : ""}${parsed}%`;
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function isAllIndiaRecord(stateName: string): boolean {
+  const normalized = normalizeText(stateName);
+
+  return (
+    normalized === "allindia" ||
+    normalized === "india" ||
+    normalized === "allindiatotal"
+  );
+}
+
+// ======================================================
 // DASHBOARD COMPONENT
-// ==========================================
+// ======================================================
 
 function Dashboard() {
+  // ----------------------------------------------------
+  // PLFS STATE WPR DATA
+  // ----------------------------------------------------
 
-  // ==========================================
-  // NATIONAL STATISTICS
-  // ==========================================
+  const [plfsStateRows, setPlfsStateRows] = useState<
+    PlfsStateWpr[]
+  >([]);
 
-  const [nationalStats, setNationalStats] = useState({
-    demand: 0,
-    workers: 0,
-    gap: 0,
-  });
-
-  const [stateRecords, setStateRecords] =
-    useState<StateData[]>([]);
-
-  const [statsLoading, setStatsLoading] =
+  const [plfsStateLoading, setPlfsStateLoading] =
     useState(true);
 
-  const [statsError, setStatsError] =
+  const [plfsStateError, setPlfsStateError] =
     useState("");
 
-  // ==========================================
-  // STATE SEARCH AND SORTING
-  // ==========================================
+  // ----------------------------------------------------
+  // PLFS INDUSTRY DATA
+  // ----------------------------------------------------
 
-  const [stateSearch, setStateSearch] =
-    useState("");
-
-  const [stateSortBy, setStateSortBy] =
-    useState<StateSortOption>("total_gap");
-
-  // ==========================================
-  // INDUSTRY DATA
-  // ==========================================
-
-  const [industryRecords, setIndustryRecords] =
-    useState<IndustryData[]>([]);
+  const [industryRows, setIndustryRows] = useState<
+    PlfsIndustry[]
+  >([]);
 
   const [industryLoading, setIndustryLoading] =
     useState(true);
@@ -124,534 +209,368 @@ function Dashboard() {
   const [industryError, setIndustryError] =
     useState("");
 
-  const [selectedIndustry, setSelectedIndustry] =
-    useState("all");
+  const [selectedIndustryPeriod, setSelectedIndustryPeriod] =
+    useState("2023-24");
 
-  // ==========================================
-  // SKILL DATA
-  // ==========================================
+  // ----------------------------------------------------
+  // NCS SECTOR VACANCY DATA
+  // ----------------------------------------------------
 
-  const [skillRecords, setSkillRecords] =
-    useState<SkillData[]>([]);
+  const [sectorRows, setSectorRows] = useState<
+    NcsSector[]
+  >([]);
 
-  const [skillsLoading, setSkillsLoading] =
+  const [sectorLoading, setSectorLoading] =
     useState(true);
 
-  const [skillsError, setSkillsError] =
+  const [sectorError, setSectorError] =
     useState("");
 
-  const [skillSearch, setSkillSearch] =
-    useState("");
+  // ----------------------------------------------------
+  // NCS QUALIFICATION VACANCY DATA
+  // ----------------------------------------------------
 
-  // ==========================================
-  // STATE-WISE INDUSTRY COMPARISON DATA
-  // ==========================================
+  const [qualificationRows, setQualificationRows] =
+    useState<NcsQualification[]>([]);
 
-  const [gapRecords, setGapRecords] =
-    useState<SkillGapRecord[]>([]);
-
-  const [comparisonLoading, setComparisonLoading] =
+  const [qualificationLoading, setQualificationLoading] =
     useState(true);
 
-  const [comparisonError, setComparisonError] =
+  const [qualificationError, setQualificationError] =
     useState("");
 
-  const [selectedComparisonState, setSelectedComparisonState] =
+  // ----------------------------------------------------
+  // NCS SUMMARY DATA
+  // ----------------------------------------------------
+
+  const [ncsSummaryRows, setNcsSummaryRows] = useState<
+    NcsSummary[]
+  >([]);
+
+  const [ncsSummaryLoading, setNcsSummaryLoading] =
+    useState(true);
+
+  const [ncsSummaryError, setNcsSummaryError] =
     useState("");
 
-  // ==========================================
-  // AI PREDICTION
-  // ==========================================
+  // ----------------------------------------------------
+  // STATE TABLE SEARCH AND SORTING
+  // ----------------------------------------------------
 
-  const [demand, setDemand] =
-    useState("10000");
+  const [stateSearch, setStateSearch] = useState("");
 
-  const [availableWorkers, setAvailableWorkers] =
-    useState("7000");
+  const [stateSortBy, setStateSortBy] =
+    useState<StateSortOption>("wpr_desc");
 
-  const [prediction, setPrediction] =
-    useState<PredictionResult | null>(null);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  // ==========================================
-  // FETCH NATIONAL AND STATE DATA
-  // ==========================================
+  // ====================================================
+  // FETCH OFFICIAL DATA
+  // ====================================================
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchNationalStats = async () => {
-      try {
-        const data: StateData[] = await getStates();
+    const fetchOfficialData = async () => {
+      const results = await Promise.allSettled([
+        getOfficialPlfsStateWpr(),
+        getOfficialPlfsIndustryDistribution(),
+        getOfficialNcsSectorVacancies(),
+        getOfficialNcsQualificationVacancies(),
+        getOfficialNcsSummary(),
+      ]);
 
-        if (!isMounted) return;
+      if (!isMounted) return;
 
-        const formattedData = data.map((item) => ({
-          state: item.state,
-          total_demand: Number(item.total_demand || 0),
-          total_workers: Number(item.total_workers || 0),
-          total_gap: Number(item.total_gap || 0),
-          gap_percentage: Number(item.gap_percentage || 0),
-        }));
+      // -----------------------------------------------
+      // 1. PLFS STATE-WISE WPR
+      // -----------------------------------------------
 
-        setStateRecords(formattedData);
+      const stateResult = results[0];
 
-        const totals = formattedData.reduce(
-          (acc, item) => ({
-            demand: acc.demand + item.total_demand,
-            workers: acc.workers + item.total_workers,
-            gap: acc.gap + item.total_gap,
-          }),
-          {
-            demand: 0,
-            workers: 0,
-            gap: 0,
-          }
+      if (stateResult.status === "fulfilled") {
+        setPlfsStateRows(
+          Array.isArray(stateResult.value)
+            ? (stateResult.value as PlfsStateWpr[])
+            : []
         );
 
-        setNationalStats(totals);
-        setStatsError("");
-
-      } catch (err) {
+        setPlfsStateError("");
+      } else {
         console.error(
-          "Failed to fetch national statistics:",
-          err
+          "Failed to load PLFS state WPR:",
+          stateResult.reason
         );
 
-        if (isMounted) {
-          setStatsError(
-            "Unable to load employment statistics. Check backend connection."
-          );
-        }
-
-      } finally {
-        if (isMounted) {
-          setStatsLoading(false);
-        }
+        setPlfsStateError(
+          "Unable to load PLFS state-wise WPR data."
+        );
       }
-    };
 
-    fetchNationalStats();
+      setPlfsStateLoading(false);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+      // -----------------------------------------------
+      // 2. PLFS INDUSTRY DISTRIBUTION
+      // -----------------------------------------------
 
-  // ==========================================
-  // FETCH INDUSTRY DATA
-  // ==========================================
+      const industryResult = results[1];
 
-  useEffect(() => {
-    let isMounted = true;
+      if (industryResult.status === "fulfilled") {
+        setIndustryRows(
+          Array.isArray(industryResult.value)
+            ? (industryResult.value as PlfsIndustry[])
+            : []
+        );
 
-    const fetchIndustryData = async () => {
-      try {
-        const data: IndustryData[] =
-          await getIndustries();
-
-        if (!isMounted) return;
-
-        const formattedData = data.map((item) => ({
-          industry: item.industry,
-          total_demand: Number(item.total_demand || 0),
-          total_workers: Number(item.total_workers || 0),
-          total_gap: Number(item.total_gap || 0),
-        }));
-
-        setIndustryRecords(formattedData);
         setIndustryError("");
-
-      } catch (err) {
+      } else {
         console.error(
-          "Failed to fetch industry data:",
-          err
+          "Failed to load PLFS industry data:",
+          industryResult.reason
         );
 
-        if (isMounted) {
-          setIndustryError(
-            "Unable to load industry data."
-          );
-        }
-
-      } finally {
-        if (isMounted) {
-          setIndustryLoading(false);
-        }
+        setIndustryError(
+          "Unable to load PLFS industry distribution."
+        );
       }
+
+      setIndustryLoading(false);
+
+      // -----------------------------------------------
+      // 3. NCS SECTOR VACANCIES
+      // -----------------------------------------------
+
+      const sectorResult = results[2];
+
+      if (sectorResult.status === "fulfilled") {
+        setSectorRows(
+          Array.isArray(sectorResult.value)
+            ? (sectorResult.value as NcsSector[])
+            : []
+        );
+
+        setSectorError("");
+      } else {
+        console.error(
+          "Failed to load NCS sector vacancies:",
+          sectorResult.reason
+        );
+
+        setSectorError(
+          "Unable to load NCS sector vacancy data."
+        );
+      }
+
+      setSectorLoading(false);
+
+      // -----------------------------------------------
+      // 4. NCS QUALIFICATION VACANCIES
+      // -----------------------------------------------
+
+      const qualificationResult = results[3];
+
+      if (qualificationResult.status === "fulfilled") {
+        setQualificationRows(
+          Array.isArray(qualificationResult.value)
+            ? (qualificationResult.value as NcsQualification[])
+            : []
+        );
+
+        setQualificationError("");
+      } else {
+        console.error(
+          "Failed to load NCS qualification vacancies:",
+          qualificationResult.reason
+        );
+
+        setQualificationError(
+          "Unable to load NCS qualification vacancy data."
+        );
+      }
+
+      setQualificationLoading(false);
+
+      // -----------------------------------------------
+      // 5. NCS SUMMARY
+      // -----------------------------------------------
+
+      const summaryResult = results[4];
+
+      if (summaryResult.status === "fulfilled") {
+        setNcsSummaryRows(
+          Array.isArray(summaryResult.value)
+            ? (summaryResult.value as NcsSummary[])
+            : []
+        );
+
+        setNcsSummaryError("");
+      } else {
+        console.error(
+          "Failed to load NCS summary:",
+          summaryResult.reason
+        );
+
+        setNcsSummaryError(
+          "Unable to load NCS summary statistics."
+        );
+      }
+
+      setNcsSummaryLoading(false);
     };
 
-    fetchIndustryData();
+    fetchOfficialData();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // ==========================================
-  // FETCH SKILL DATA
-  // ==========================================
+  // ====================================================
+  // PLFS NATIONAL RECORD
+  // ====================================================
 
-  useEffect(() => {
-    let isMounted = true;
+  const allIndiaRecord = useMemo(() => {
+    return plfsStateRows.find((row) =>
+      isAllIndiaRecord(row.state_ut)
+    );
+  }, [plfsStateRows]);
 
-    const fetchSkillData = async () => {
-      try {
-        const data: SkillData[] = await getSkills();
+  // ====================================================
+  // PLFS STATE RECORDS
+  // ====================================================
 
-        if (!isMounted) return;
+  const stateRecords = useMemo(() => {
+    return plfsStateRows.filter(
+      (row) => !isAllIndiaRecord(row.state_ut)
+    );
+  }, [plfsStateRows]);
 
-        const formattedData = data
-          .map((item) => ({
-            skill: item.skill,
-            total_demand: Number(item.total_demand || 0),
-          }))
-          .sort(
-            (a, b) =>
-              b.total_demand - a.total_demand
-          );
-
-        setSkillRecords(formattedData);
-        setSkillsError("");
-
-      } catch (err) {
-        console.error(
-          "Failed to fetch skill data:",
-          err
-        );
-
-        if (isMounted) {
-          setSkillsError(
-            "Unable to load skill demand data."
-          );
-        }
-
-      } finally {
-        if (isMounted) {
-          setSkillsLoading(false);
-        }
-      }
-    };
-
-    fetchSkillData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // ==========================================
-  // FETCH STATE-WISE INDUSTRY DATA
-  // ==========================================
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchGapRecords = async () => {
-      try {
-        const data: SkillGapRecord[] =
-          await getSkillGaps();
-
-        if (!isMounted) return;
-
-        const formattedData = data.map((item) => ({
-          state: item.state,
-          industry: item.industry,
-          skill: item.skill,
-          demand: Number(item.demand || 0),
-          available_workers: Number(
-            item.available_workers || 0
-          ),
-          skill_gap: Number(item.skill_gap || 0),
-          gap_percentage: Number(
-            item.gap_percentage || 0
-          ),
-        }));
-
-        setGapRecords(formattedData);
-        setComparisonError("");
-
-      } catch (err) {
-        console.error(
-          "Failed to fetch state-wise industry data:",
-          err
-        );
-
-        if (isMounted) {
-          setComparisonError(
-            "Unable to load state-wise industry data."
-          );
-        }
-
-      } finally {
-        if (isMounted) {
-          setComparisonLoading(false);
-        }
-      }
-    };
-
-    fetchGapRecords();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // ==========================================
-  // STATE TABLE FILTERING AND SORTING
-  // ==========================================
+  // ====================================================
+  // FILTERED AND SORTED STATE RECORDS
+  // ====================================================
 
   const filteredStateRecords = useMemo(() => {
-
     const searchValue = stateSearch
       .trim()
       .toLowerCase();
 
-    const filtered = stateRecords.filter((item) =>
-      item.state.toLowerCase().includes(searchValue)
+    const filtered = stateRecords.filter((row) =>
+      row.state_ut.toLowerCase().includes(searchValue)
     );
 
-    return filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
+      const aWpr =
+        toNumber(a.rural_urban_person_wpr_pct) ?? -Infinity;
+
+      const bWpr =
+        toNumber(b.rural_urban_person_wpr_pct) ?? -Infinity;
 
       switch (stateSortBy) {
+        case "wpr_desc":
+          return bWpr - aWpr;
 
-        case "state":
-          return a.state.localeCompare(b.state);
+        case "wpr_asc":
+          return aWpr - bWpr;
 
-        case "total_gap":
-          return b.total_gap - a.total_gap;
-
-        case "gap_percentage":
-          return b.gap_percentage - a.gap_percentage;
-
-        case "total_demand":
-          return b.total_demand - a.total_demand;
+        case "name":
+          return a.state_ut.localeCompare(b.state_ut);
 
         default:
           return 0;
       }
     });
-
   }, [stateRecords, stateSearch, stateSortBy]);
 
-  // ==========================================
-  // INDUSTRY FILTERING
-  // ==========================================
+  // ====================================================
+  // PLFS INDUSTRY PERIODS
+  // ====================================================
 
-  const filteredIndustryRecords = useMemo(() => {
-
-    if (selectedIndustry === "all") {
-      return industryRecords;
-    }
-
-    return industryRecords.filter(
-      (item) => item.industry === selectedIndustry
-    );
-
-  }, [industryRecords, selectedIndustry]);
-
-  // ==========================================
-  // SKILL SEARCH
-  // ==========================================
-
-  const filteredSkillRecords = useMemo(() => {
-
-    const searchValue = skillSearch
-      .trim()
-      .toLowerCase();
-
-    return skillRecords.filter((item) =>
-      item.skill.toLowerCase().includes(searchValue)
-    );
-
-  }, [skillRecords, skillSearch]);
-
-  // Display top 10 normally, all matches when searching
-  const displayedSkillRecords = useMemo(() => {
-
-    if (skillSearch.trim()) {
-      return filteredSkillRecords;
-    }
-
-    return filteredSkillRecords.slice(0, 10);
-
-  }, [filteredSkillRecords, skillSearch]);
-
-  // ==========================================
-  // TOP 10 SHORTAGE STATES
-  // ==========================================
-
-  const topShortageStates = useMemo(() => {
-
-    return [...stateRecords]
-      .filter((item) => item.total_gap > 0)
-      .sort(
-        (a, b) =>
-          b.total_gap - a.total_gap
-      )
-      .slice(0, 10);
-
-  }, [stateRecords]);
-
-  // ==========================================
-  // STATE-WISE INDUSTRY COMPARISON
-  // ==========================================
-
-  const comparisonStates = useMemo(() => {
-
+  const industryPeriods = useMemo(() => {
     return [
       ...new Set(
-        gapRecords.map((item) => item.state)
+        industryRows.map((row) => row.survey_period)
       ),
     ].sort();
+  }, [industryRows]);
 
-  }, [gapRecords]);
+  // ====================================================
+  // PLFS INDUSTRY CHART DATA
+  // ====================================================
 
-  const activeComparisonState =
-    selectedComparisonState ||
-    comparisonStates[0] ||
-    "";
-
-  const stateIndustryComparison = useMemo(() => {
-
-    const selectedRecords = gapRecords.filter(
-      (item) => item.state === activeComparisonState
-    );
-
-    const industryMap = new Map<
-      string,
-      {
-        industry: string;
-        total_demand: number;
-        total_workers: number;
-        total_gap: number;
-      }
-    >();
-
-    selectedRecords.forEach((item) => {
-
-      const existing = industryMap.get(item.industry);
-
-      if (existing) {
-
-        existing.total_demand += item.demand;
-        existing.total_workers += item.available_workers;
-        existing.total_gap += item.skill_gap;
-
-      } else {
-
-        industryMap.set(item.industry, {
-          industry: item.industry,
-          total_demand: item.demand,
-          total_workers: item.available_workers,
-          total_gap: item.skill_gap,
-        });
-
-      }
-    });
-
-    return Array.from(industryMap.values());
-
-  }, [gapRecords, activeComparisonState]);
-
-  // ==========================================
-  // AI SKILL GAP PREDICTION
-  // ==========================================
-
-  const handlePrediction = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-    const demandValue = Number(demand);
-    const workersValue = Number(availableWorkers);
-
-    if (
-      !Number.isFinite(demandValue) ||
-      demandValue <= 0
-    ) {
-      setError(
-        "Enter a valid demand greater than zero."
+  const industryChartData = useMemo(() => {
+    return industryRows
+      .filter(
+        (row) =>
+          row.survey_period === selectedIndustryPeriod
+      )
+      .map((row) => ({
+        industry: row.industry_broad_division_nic08,
+        employmentShare:
+          toNumber(row.rural_urban_person_pct),
+      }))
+      .sort(
+        (a, b) =>
+          (b.employmentShare ?? -Infinity) -
+          (a.employmentShare ?? -Infinity)
       );
-      return;
-    }
+  }, [industryRows, selectedIndustryPeriod]);
 
-    if (
-      !Number.isFinite(workersValue) ||
-      workersValue < 0
-    ) {
-      setError(
-        "Enter a valid number of available workers."
+  // ====================================================
+  // NCS SECTOR CHART DATA
+  // ====================================================
+
+  const sectorChartData = useMemo(() => {
+    return sectorRows
+      .map((row) => ({
+        sector: row.ncs_sector_as_published,
+        fy2022_23: toNumber(row.vacancies_fy2022_23),
+        fy2023_24: toNumber(row.vacancies_fy2023_24),
+      }))
+      .sort(
+        (a, b) =>
+          (b.fy2023_24 ?? -Infinity) -
+          (a.fy2023_24 ?? -Infinity)
       );
-      return;
-    }
+  }, [sectorRows]);
 
-    setLoading(true);
-    setError("");
-    setPrediction(null);
+  // ====================================================
+  // NCS QUALIFICATION CHART DATA
+  // ====================================================
 
-    try {
-
-      const result: PredictionResult =
-        await getPrediction(
-          demandValue,
-          workersValue
-        );
-
-      setPrediction(result);
-
-    } catch (err) {
-
-      console.error("Prediction failed:", err);
-
-      setError(
-        "Prediction failed. Please check whether the backend is running."
+  const qualificationChartData = useMemo(() => {
+    return qualificationRows
+      .map((row) => ({
+        qualification: row.qualification_as_published,
+        fy2022_23: toNumber(row.vacancies_fy2022_23),
+        fy2023_24: toNumber(row.vacancies_fy2023_24),
+      }))
+      .sort(
+        (a, b) =>
+          (b.fy2023_24 ?? -Infinity) -
+          (a.fy2023_24 ?? -Infinity)
       );
+  }, [qualificationRows]);
 
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ====================================================
+  // NCS SUMMARY CARDS
+  // ====================================================
 
-  // ==========================================
-  // STATUS CLASSIFICATION
-  // ==========================================
+  const ncsSummaryCards = useMemo(() => {
+    return ncsSummaryRows.map((row) => ({
+      label: row.metric_as_published,
+      previous: toNumber(row.value_fy2022_23),
+      current: toNumber(row.value_fy2023_24),
+      change: toNumber(row.reported_percent_change),
+    }));
+  }, [ncsSummaryRows]);
 
-  const getStatus = (gap: number) => {
-
-    if (gap > 0) return "Shortage";
-
-    if (gap < 0) return "Surplus";
-
-    return "Balanced";
-  };
-
-  // ==========================================
-  // NUMBER FORMATTING
-  // ==========================================
-
-  const formatNumber = (value: number) => {
-    return value.toLocaleString("en-IN");
-  };
-
-  // ==========================================
-  // DASHBOARD UI
-  // ==========================================
+  // ====================================================
+  // RENDER DASHBOARD
+  // ====================================================
 
   return (
-
     <div className="dashboard">
-
       {/* NAVIGATION */}
 
       <nav className="dashboard-nav">
-
         <h2 className="dashboard-logo">
           SkillPulse AI
         </h2>
@@ -660,679 +579,325 @@ function Dashboard() {
           <a href="/">Home</a>
           <a href="/dashboard">Dashboard</a>
         </div>
-
       </nav>
 
       <main className="dashboard-content">
-
-        {/* DASHBOARD HEADER */}
+        {/* HEADER */}
 
         <header className="dashboard-header">
-
           <span className="dashboard-eyebrow">
-            EMPLOYMENT INTELLIGENCE PLATFORM
+            OFFICIAL EMPLOYMENT DATA INTELLIGENCE
           </span>
 
-          <h1>
-            India Skill Gap Dashboard
-          </h1>
+          <h1>India Skill Gap Dashboard</h1>
 
           <p>
-            Analyze workforce demand, employment availability
-            and skill shortages across India.
+            Explore workforce participation, industry-wise
+            employment distribution and vacancies reported
+            through the National Career Service.
           </p>
-
         </header>
 
-        {/* ======================================
-            NATIONAL STATISTICS
-        ====================================== */}
+        {/* =================================================
+            PLFS NATIONAL WPR STATISTICS
+        ================================================= */}
 
         <section className="stats-grid">
-
           <div className="stat-card">
-
-            <h3>Total Workforce Demand</h3>
+            <h3>All India WPR</h3>
 
             <h2>
-              {statsLoading
+              {plfsStateLoading
                 ? "Loading..."
-                : formatNumber(nationalStats.demand)}
+                : formatPercentage(
+                    allIndiaRecord?.rural_urban_person_wpr_pct
+                  )}
             </h2>
 
+            <p>Rural + Urban</p>
           </div>
 
           <div className="stat-card">
-
-            <h3>Available Workers</h3>
+            <h3>Rural WPR</h3>
 
             <h2>
-              {statsLoading
+              {plfsStateLoading
                 ? "Loading..."
-                : formatNumber(nationalStats.workers)}
+                : formatPercentage(
+                    allIndiaRecord?.rural_person_wpr_pct
+                  )}
             </h2>
 
+            <p>Rural population</p>
           </div>
 
           <div className="stat-card">
+            <h3>Urban WPR</h3>
 
-            <h3>Net National Skill Gap</h3>
-
-            <h2
-              className={
-                nationalStats.gap > 0
-                  ? "shortage-value"
-                  : nationalStats.gap < 0
-                  ? "surplus-value"
-                  : ""
-              }
-            >
-              {statsLoading
+            <h2>
+              {plfsStateLoading
                 ? "Loading..."
-                : formatNumber(nationalStats.gap)}
+                : formatPercentage(
+                    allIndiaRecord?.urban_person_wpr_pct
+                  )}
             </h2>
 
+            <p>Urban population</p>
           </div>
-
         </section>
 
-        {statsError && (
+        {/* IMPORTANT: PLFS DATA DISCLAIMER */}
+
+        <p className="data-disclaimer">
+          Source: MoSPI, PLFS Annual Report 2025. These are
+          annual usual-status estimates (ps+ss) for all ages.
+          They should not be directly compared with monthly
+          PLFS Current Weekly Status (CWS) estimates, which
+          use a different reference period and may use a
+          different age group.
+        </p>
+
+        {plfsStateError && (
           <p className="prediction-error">
-            {statsError}
+            {plfsStateError}
           </p>
         )}
 
-        {/* ======================================
-            AI SKILL GAP PREDICTOR
-        ====================================== */}
-
-        <section className="prediction-section">
-
-          <div className="section-heading">
-
-            <div>
-
-              <span className="section-eyebrow">
-                INTELLIGENCE ENGINE
-              </span>
-
-              <h2>AI Skill Gap Predictor</h2>
-
-            </div>
-
-          </div>
-
-          <p className="section-description">
-            Enter workforce demand and worker availability
-            to calculate the current skill gap.
-          </p>
-
-          <form
-            onSubmit={handlePrediction}
-            className="prediction-form"
-          >
-
-            <div className="form-group">
-
-              <label htmlFor="demand">
-                Workforce Demand
-              </label>
-
-              <input
-                id="demand"
-                type="number"
-                min="1"
-                step="any"
-                value={demand}
-                onChange={(e) =>
-                  setDemand(e.target.value)
-                }
-                required
-              />
-
-            </div>
-
-            <div className="form-group">
-
-              <label htmlFor="workers">
-                Available Workers
-              </label>
-
-              <input
-                id="workers"
-                type="number"
-                min="0"
-                step="any"
-                value={availableWorkers}
-                onChange={(e) =>
-                  setAvailableWorkers(e.target.value)
-                }
-                required
-              />
-
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="primary-action"
-            >
-              {loading
-                ? "Analyzing..."
-                : "Predict Skill Gap"}
-            </button>
-
-          </form>
-
-          {error && (
-            <p className="prediction-error">
-              {error}
-            </p>
-          )}
-
-          {/* PREDICTION RESULTS */}
-
-          {prediction && (
-
-            <div className="prediction-result">
-
-              <div className="result-header">
-
-                <h3>Prediction Results</h3>
-
-                <span
-                  className={`status-badge ${prediction.predicted_status.toLowerCase()}`}
-                >
-                  {prediction.predicted_status}
-                </span>
-
-              </div>
-
-              <div className="prediction-metrics">
-
-                <div>
-                  <span>Workforce Demand</span>
-
-                  <strong>
-                    {formatNumber(prediction.demand)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Available Workers</span>
-
-                  <strong>
-                    {formatNumber(
-                      prediction.available_workers
-                    )}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Net Skill Gap</span>
-
-                  <strong>
-                    {formatNumber(prediction.skill_gap)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Gap Percentage</span>
-
-                  <strong>
-                    {prediction.gap_percentage === null
-                      ? "N/A"
-                      : `${prediction.gap_percentage.toFixed(2)}%`}
-                  </strong>
-                </div>
-
-              </div>
-
-            </div>
-
-          )}
-
-          <p className="data-disclaimer">
-            Current classification uses workforce demand
-            minus available workers. It is not a future
-            employment forecast.
-          </p>
-
-        </section>
-
-        {/* ======================================
-            INTERACTIVE INDIA MAP
-        ====================================== */}
+        {/* =================================================
+            INDIA WPR MAP
+        ================================================= */}
 
         <section className="map-section">
-
           <div className="section-heading">
-
             <div>
-
               <span className="section-eyebrow">
-                GEOGRAPHICAL ANALYSIS
+                GEOGRAPHIC EMPLOYMENT DATA
               </span>
 
-              <h2>State-wise Skill Gap Analysis</h2>
+              <h2>India Worker Population Ratio Map</h2>
 
               <p>
-                Select a state to explore employment demand
-                and workforce availability.
+                Select a state or union territory to explore
+                its reported Worker Population Ratio.
               </p>
-
             </div>
-
           </div>
 
           <IndiaSkillMap />
 
+          <p className="data-disclaimer">
+            Source: MoSPI, PLFS Annual Report 2025,
+            state-wise Worker Population Ratio data.
+            WPR is an employment indicator; it is not a
+            direct measurement of skill demand or skill shortage.
+          </p>
         </section>
 
-        {/* ======================================
-            STATE-WISE EMPLOYMENT TABLE
-        ====================================== */}
+        {/* =================================================
+            STATE-WISE PLFS TABLE
+        ================================================= */}
 
         <section className="state-table-section">
-
           <div className="section-heading">
-
             <div>
-
               <span className="section-eyebrow">
-                REGIONAL WORKFORCE DATA
+                STATE-WISE PLFS DATA
               </span>
 
-              <h2>State-wise Employment Analysis</h2>
+              <h2>Worker Population Ratio by State</h2>
 
               <p>
-                Compare workforce demand, available workers
-                and skill gaps across states.
+                State and union territory estimates from
+                the PLFS annual dataset.
               </p>
-
             </div>
 
             <span className="record-count">
-              {filteredStateRecords.length} states
+              {stateRecords.length} regions
             </span>
-
           </div>
 
-          {/* STATE SEARCH AND SORT */}
-
           <div className="table-controls">
-
             <input
-              type="search"
-              placeholder="Search for a state..."
-              aria-label="Search states"
+              type="text"
+              placeholder="Search state or union territory..."
               value={stateSearch}
-              onChange={(e) =>
-                setStateSearch(e.target.value)
+              onChange={(event) =>
+                setStateSearch(event.target.value)
               }
             />
 
             <select
-              aria-label="Sort states"
               value={stateSortBy}
-              onChange={(e) =>
+              onChange={(event) =>
                 setStateSortBy(
-                  e.target.value as StateSortOption
+                  event.target.value as StateSortOption
                 )
               }
             >
-
-              <option value="total_gap">
-                Sort by Skill Gap
+              <option value="wpr_desc">
+                Highest WPR first
               </option>
 
-              <option value="gap_percentage">
-                Sort by Gap Percentage
+              <option value="wpr_asc">
+                Lowest WPR first
               </option>
 
-              <option value="total_demand">
-                Sort by Workforce Demand
+              <option value="name">
+                Sort alphabetically
               </option>
-
-              <option value="state">
-                Sort Alphabetically
-              </option>
-
             </select>
-
           </div>
 
-          <div className="table-scroll">
-
-            <table className="state-table">
-
-              <thead>
-
-                <tr>
-                  <th>State</th>
-                  <th>Workforce Demand</th>
-                  <th>Available Workers</th>
-                  <th>Net Skill Gap</th>
-                  <th>Gap Percentage</th>
-                  <th>Status</th>
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                {statsLoading ? (
-
-                  <tr>
-                    <td colSpan={6}>
-                      Loading state data...
-                    </td>
-                  </tr>
-
-                ) : filteredStateRecords.length === 0 ? (
-
-                  <tr>
-                    <td colSpan={6} className="empty-state">
-                      No matching states found.
-                    </td>
-                  </tr>
-
-                ) : (
-
-                  filteredStateRecords.map((item) => {
-
-                    const gap = item.total_gap;
-                    const status = getStatus(gap);
-
-                    return (
-
-                      <tr key={item.state}>
-
-                        <td className="state-name">
-                          {item.state}
-                        </td>
-
-                        <td>
-                          {formatNumber(item.total_demand)}
-                        </td>
-
-                        <td>
-                          {formatNumber(item.total_workers)}
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={
-                              gap > 0
-                                ? "shortage-value"
-                                : gap < 0
-                                ? "surplus-value"
-                                : ""
-                            }
-                          >
-                            {gap > 0 ? "+" : ""}
-                            {formatNumber(gap)}
-                          </span>
-
-                        </td>
-
-                        <td>
-                          {item.gap_percentage.toFixed(2)}%
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={`status-badge ${status.toLowerCase()}`}
-                          >
-                            {status}
-                          </span>
-
-                        </td>
-
-                      </tr>
-
-                    );
-                  })
-
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-          <p className="data-disclaimer">
-            State-wise analysis currently uses our synthetic
-            demonstration dataset. Real employment data
-            will be integrated later.
-          </p>
-
-        </section>
-
-        {/* ======================================
-            TOP 10 SHORTAGE STATES
-        ====================================== */}
-
-        <section className="top-shortage-section">
-
-          <div className="section-heading">
-
-            <div>
-
-              <span className="section-eyebrow">
-                REGIONAL SHORTAGE INTELLIGENCE
-              </span>
-
-              <h2>
-                Top 10 States with Highest Skill Shortages
-              </h2>
-
-              <p>
-                States ranked according to the number of
-                additional workers required.
-              </p>
-
-            </div>
-
-            <span className="record-count">
-              Top {topShortageStates.length} states
-            </span>
-
-          </div>
-
-          {statsLoading ? (
-
+          {plfsStateLoading ? (
             <p className="loading-message">
-              Loading shortage rankings...
+              Loading state-wise PLFS data...
             </p>
-
-          ) : topShortageStates.length === 0 ? (
-
-            <p className="empty-state">
-              No workforce shortages found.
+          ) : plfsStateError ? (
+            <p className="prediction-error">
+              {plfsStateError}
             </p>
-
           ) : (
+            <div className="table-scroll">
+              <table className="state-table">
+                <thead>
+                  <tr>
+                    <th>State / UT</th>
+                    <th>Combined WPR</th>
+                    <th>Rural WPR</th>
+                    <th>Urban WPR</th>
+                    <th>Male WPR</th>
+                    <th>Female WPR</th>
+                  </tr>
+                </thead>
 
-            <div
-              className="top-shortage-chart"
-              style={{
-                height: `${Math.max(
-                  280,
-                  topShortageStates.length * 55
-                )}px`,
-              }}
-            >
+                <tbody>
+                  {filteredStateRecords.length > 0 ? (
+                    filteredStateRecords.map((row) => (
+                      <tr key={row.state_ut}>
+                        <td className="state-name">
+                          {row.state_ut}
+                        </td>
 
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-              >
+                        <td>
+                          {formatPercentage(
+                            row.rural_urban_person_wpr_pct
+                          )}
+                        </td>
 
-                <BarChart
-                  data={topShortageStates}
-                  layout="vertical"
-                  margin={{
-                    top: 10,
-                    right: 35,
-                    left: 35,
-                    bottom: 10,
-                  }}
-                >
+                        <td>
+                          {formatPercentage(
+                            row.rural_person_wpr_pct
+                          )}
+                        </td>
 
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#334155"
-                  />
+                        <td>
+                          {formatPercentage(
+                            row.urban_person_wpr_pct
+                          )}
+                        </td>
 
-                  <XAxis
-                    type="number"
-                    stroke="#94a3b8"
-                  />
+                        <td>
+                          {formatPercentage(
+                            row.rural_urban_male_wpr_pct
+                          )}
+                        </td>
 
-                  <YAxis
-                    type="category"
-                    dataKey="state"
-                    width={130}
-                    stroke="#94a3b8"
-                    tick={{
-                      fill: "#cbd5e1",
-                      fontSize: 12,
-                    }}
-                  />
-
-                  <Tooltip
-                    formatter={(value) =>
-                      `${formatNumber(Number(value))} workers`
-                    }
-                    contentStyle={{
-                      backgroundColor: "#0b1120",
-                      border: "1px solid #334155",
-                      borderRadius: "8px",
-                      color: "#ffffff",
-                    }}
-                  />
-
-                  <Bar
-                    dataKey="total_gap"
-                    name="Additional Workers Required"
-                    fill="#f87171"
-                    radius={[0, 6, 6, 0]}
-                  />
-
-                </BarChart>
-
-              </ResponsiveContainer>
-
+                        <td>
+                          {formatPercentage(
+                            row.rural_urban_female_wpr_pct
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="empty-state"
+                      >
+                        No matching state found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
           )}
 
           <p className="data-disclaimer">
-            Rankings are based on net state-wise skill gaps.
-            Only states with positive skill gaps are included.
+            WPR represents the percentage of employed
+            persons in the relevant population group.
+            It should not be interpreted as the percentage
+            of vacancies filled.
           </p>
-
         </section>
 
-        {/* ======================================
-            STATE-WISE INDUSTRY COMPARISON
-        ====================================== */}
+        {/* =================================================
+            PLFS INDUSTRY DISTRIBUTION
+        ================================================= */}
 
-        <section className="state-industry-section">
-
+        <section className="industry-section">
           <div className="section-heading">
-
             <div>
-
               <span className="section-eyebrow">
-                REGIONAL INDUSTRY INTELLIGENCE
+                PLFS INDUSTRY ANALYSIS
               </span>
 
-              <h2>
-                State-wise Industry Comparison
-              </h2>
+              <h2>Employment Distribution by Industry</h2>
 
               <p>
-                Compare workforce demand and availability
-                across industries within a selected state.
+                Percentage distribution of workers across
+                broad industry divisions.
               </p>
-
             </div>
-
           </div>
 
-          {/* STATE SELECTION */}
-
           <div className="industry-filter">
-
-            <label htmlFor="comparison-state">
-              Select State
+            <label htmlFor="industry-period">
+              Survey period
             </label>
 
             <select
-              id="comparison-state"
-              value={activeComparisonState}
-              onChange={(e) =>
-                setSelectedComparisonState(e.target.value)
+              id="industry-period"
+              value={selectedIndustryPeriod}
+              onChange={(event) =>
+                setSelectedIndustryPeriod(event.target.value)
               }
-              disabled={comparisonStates.length === 0}
+              disabled={industryLoading}
             >
-
-              {comparisonStates.map((state) => (
-
-                <option key={state} value={state}>
-                  {state}
+              {industryPeriods.map((period) => (
+                <option key={period} value={period}>
+                  {period}
                 </option>
-
               ))}
-
             </select>
-
           </div>
 
-          {/* COMPARISON CHART */}
-
-          {comparisonLoading ? (
-
+          {industryLoading ? (
             <p className="loading-message">
-              Loading state-wise industry data...
+              Loading industry distribution...
             </p>
-
-          ) : comparisonError ? (
-
+          ) : industryError ? (
             <p className="prediction-error">
-              {comparisonError}
+              {industryError}
             </p>
-
-          ) : stateIndustryComparison.length === 0 ? (
-
+          ) : industryChartData.length === 0 ? (
             <p className="empty-state">
-              No industry records available for this state.
+              No industry data available for this period.
             </p>
-
           ) : (
-
             <div className="industry-chart">
-
-              <ResponsiveContainer
-                width="100%"
-                height={360}
-              >
-
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={stateIndustryComparison}
+                  data={industryChartData}
                   margin={{
-                    top: 20,
-                    right: 25,
+                    top: 10,
+                    right: 20,
                     left: 10,
-                    bottom: 15,
+                    bottom: 65,
                   }}
                 >
-
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="#334155"
@@ -1340,18 +905,198 @@ function Dashboard() {
 
                   <XAxis
                     dataKey="industry"
-                    stroke="#94a3b8"
+                    angle={-25}
+                    textAnchor="end"
+                    interval={0}
+                    height={90}
                     tick={{
                       fill: "#cbd5e1",
-                      fontSize: 12,
+                      fontSize: 11,
                     }}
                   />
 
                   <YAxis
-                    stroke="#94a3b8"
                     tick={{
                       fill: "#cbd5e1",
                       fontSize: 12,
+                    }}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+
+                  <Tooltip
+                    formatter={(value) =>
+                      `${Number(value).toFixed(1)}%`
+                    }
+                    contentStyle={{
+                      background: "#0b1120",
+                      border: "1px solid #334155",
+                      borderRadius: "8px",
+                      color: "#ffffff",
+                    }}
+                  />
+
+                  <Bar
+                    dataKey="employmentShare"
+                    name="Employment share"
+                    fill="#38bdf8"
+                    radius={[5, 5, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <p className="data-disclaimer">
+            Source: MoSPI, PLFS Annual Report 2023–24,
+            Statement 7. These are historical annual
+            employment-distribution estimates, not forecasts.
+          </p>
+        </section>
+
+        {/* =================================================
+            NCS SUMMARY STATISTICS
+        ================================================= */}
+
+        <section className="industry-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">
+                NATIONAL CAREER SERVICE
+              </span>
+
+              <h2>NCS Summary Statistics</h2>
+
+              <p>
+                Published National Career Service platform
+                statistics for FY 2022–23 and FY 2023–24.
+              </p>
+            </div>
+          </div>
+
+          {ncsSummaryLoading ? (
+            <p className="loading-message">
+              Loading NCS summary...
+            </p>
+          ) : ncsSummaryError ? (
+            <p className="prediction-error">
+              {ncsSummaryError}
+            </p>
+          ) : ncsSummaryCards.length === 0 ? (
+            <p className="empty-state">
+              No NCS summary data available.
+            </p>
+          ) : (
+            <div className="industry-gap-list">
+              {ncsSummaryCards.map((item) => (
+                <div
+                  className="industry-gap-card"
+                  key={item.label}
+                >
+                  <h3>{item.label}</h3>
+
+                  <p>
+                    FY 2023–24
+                    <strong>
+                      {" "}
+                      {formatNumber(item.current)}
+                    </strong>
+                  </p>
+
+                  <p>
+                    FY 2022–23
+                    <strong>
+                      {" "}
+                      {formatNumber(item.previous)}
+                    </strong>
+                  </p>
+
+                  <p>
+                    Reported change
+                    <strong>
+                      {" "}
+                      {formatChange(item.change)}
+                    </strong>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="data-disclaimer">
+            Source: National Career Service,
+            Comparative NCS Statistics for FY 2022–23
+            and FY 2023–24. These figures describe activity
+            reported on the NCS platform; they are not a
+            census of all vacancies in India.
+          </p>
+        </section>
+
+        {/* =================================================
+            NCS SECTOR-WISE VACANCIES
+        ================================================= */}
+
+        <section className="industry-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">
+                NCS VACANCY ANALYSIS
+              </span>
+
+              <h2>Vacancies by Sector</h2>
+
+              <p>
+                Comparison of vacancies mobilised through
+                NCS across the two reported financial years.
+              </p>
+            </div>
+          </div>
+
+          {sectorLoading ? (
+            <p className="loading-message">
+              Loading sector vacancy data...
+            </p>
+          ) : sectorError ? (
+            <p className="prediction-error">
+              {sectorError}
+            </p>
+          ) : sectorChartData.length === 0 ? (
+            <p className="empty-state">
+              No sector vacancy data available.
+            </p>
+          ) : (
+            <div className="industry-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={sectorChartData}
+                  layout="vertical"
+                  margin={{
+                    top: 10,
+                    right: 25,
+                    left: 30,
+                    bottom: 10,
+                  }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                  />
+
+                  <XAxis
+                    type="number"
+                    tick={{
+                      fill: "#cbd5e1",
+                      fontSize: 11,
+                    }}
+                    tickFormatter={formatCompactNumber}
+                  />
+
+                  <YAxis
+                    type="category"
+                    dataKey="sector"
+                    width={175}
+                    tick={{
+                      fill: "#cbd5e1",
+                      fontSize: 11,
                     }}
                   />
 
@@ -1360,7 +1105,7 @@ function Dashboard() {
                       formatNumber(Number(value))
                     }
                     contentStyle={{
-                      backgroundColor: "#0b1120",
+                      background: "#0b1120",
                       border: "1px solid #334155",
                       borderRadius: "8px",
                       color: "#ffffff",
@@ -1370,403 +1115,78 @@ function Dashboard() {
                   <Legend />
 
                   <Bar
-                    dataKey="total_demand"
-                    name="Workforce Demand"
-                    fill="#38bdf8"
-                    radius={[5, 5, 0, 0]}
+                    dataKey="fy2022_23"
+                    name="FY 2022–23"
+                    fill="#0ea5e9"
+                    radius={[0, 4, 4, 0]}
                   />
 
                   <Bar
-                    dataKey="total_workers"
-                    name="Available Workers"
-                    fill="#a78bfa"
-                    radius={[5, 5, 0, 0]}
+                    dataKey="fy2023_24"
+                    name="FY 2023–24"
+                    fill="#22c55e"
+                    radius={[0, 4, 4, 0]}
                   />
-
                 </BarChart>
-
               </ResponsiveContainer>
-
             </div>
-
           )}
 
-          {/* INDUSTRY GAP CARDS */}
-
-          {!comparisonLoading &&
-            !comparisonError &&
-            stateIndustryComparison.length > 0 && (
-
-              <div className="industry-gap-list">
-
-                {stateIndustryComparison.map((item) => {
-
-                  const status = getStatus(item.total_gap);
-
-                  return (
-
-                    <div
-                      className="industry-gap-card"
-                      key={item.industry}
-                    >
-
-                      <h3>{item.industry}</h3>
-
-                      <p>
-                        Workforce Demand:{" "}
-                        {formatNumber(item.total_demand)}
-                      </p>
-
-                      <p>
-                        Available Workers:{" "}
-                        {formatNumber(item.total_workers)}
-                      </p>
-
-                      <p>
-                        Net Skill Gap:{" "}
-                        {item.total_gap > 0 ? "+" : ""}
-                        {formatNumber(item.total_gap)}
-                      </p>
-
-                      <span
-                        className={`status-badge ${status.toLowerCase()}`}
-                      >
-                        {status}
-                      </span>
-
-                    </div>
-
-                  );
-                })}
-
-              </div>
-
-            )}
-
           <p className="data-disclaimer">
-            Industry comparisons are calculated from
-            the selected state's employment records.
+            Source: NCS Comparative Statistics FY 2022–23
+            and FY 2023–24. Sector figures represent
+            vacancies mobilised through the NCS platform.
+            They should not be treated as total national
+            workforce demand.
           </p>
-
         </section>
 
-        {/* ======================================
-            INDUSTRY-WISE ANALYSIS
-        ====================================== */}
+        {/* =================================================
+            NCS QUALIFICATION-WISE VACANCIES
+        ================================================= */}
 
         <section className="industry-section">
-
           <div className="section-heading">
-
             <div>
-
               <span className="section-eyebrow">
-                SECTORAL ANALYSIS
+                NCS QUALIFICATION ANALYSIS
               </span>
 
-              <h2>
-                Industry-wise Skill Gap Analysis
-              </h2>
+              <h2>Vacancies by Qualification</h2>
 
               <p>
-                Compare workforce demand and availability
-                across different industries.
+                NCS-reported vacancies grouped by the
+                qualification categories published in
+                the source report.
               </p>
-
             </div>
-
           </div>
 
-          {/* INDUSTRY FILTER */}
-
-          <div className="industry-filter">
-
-            <label htmlFor="industry-select">
-              Select Industry
-            </label>
-
-            <select
-              id="industry-select"
-              value={selectedIndustry}
-              onChange={(e) =>
-                setSelectedIndustry(e.target.value)
-              }
-            >
-
-              <option value="all">
-                All Industries
-              </option>
-
-              {industryRecords.map((item) => (
-
-                <option
-                  key={item.industry}
-                  value={item.industry}
-                >
-                  {item.industry}
-                </option>
-
-              ))}
-
-            </select>
-
-          </div>
-
-          {/* INDUSTRY CHART */}
-
-          {industryLoading ? (
-
+          {qualificationLoading ? (
             <p className="loading-message">
-              Loading industry data...
+              Loading qualification vacancy data...
             </p>
-
-          ) : industryError ? (
-
+          ) : qualificationError ? (
             <p className="prediction-error">
-              {industryError}
+              {qualificationError}
             </p>
-
-          ) : filteredIndustryRecords.length === 0 ? (
-
+          ) : qualificationChartData.length === 0 ? (
             <p className="empty-state">
-              No industry data available.
+              No qualification vacancy data available.
             </p>
-
           ) : (
-
-            <>
-
-              <div className="industry-chart">
-
-                <ResponsiveContainer
-                  width="100%"
-                  height={360}
-                >
-
-                  <BarChart
-                    data={filteredIndustryRecords}
-                    margin={{
-                      top: 20,
-                      right: 25,
-                      left: 10,
-                      bottom: 15,
-                    }}
-                  >
-
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#334155"
-                    />
-
-                    <XAxis
-                      dataKey="industry"
-                      stroke="#94a3b8"
-                      tick={{
-                        fill: "#cbd5e1",
-                        fontSize: 12,
-                      }}
-                    />
-
-                    <YAxis
-                      stroke="#94a3b8"
-                      tick={{
-                        fill: "#cbd5e1",
-                        fontSize: 12,
-                      }}
-                    />
-
-                    <Tooltip
-                      formatter={(value) =>
-                        formatNumber(Number(value))
-                      }
-                      contentStyle={{
-                        backgroundColor: "#0b1120",
-                        border: "1px solid #334155",
-                        borderRadius: "8px",
-                        color: "#ffffff",
-                      }}
-                    />
-
-                    <Legend />
-
-                    <Bar
-                      dataKey="total_demand"
-                      name="Workforce Demand"
-                      fill="#38bdf8"
-                      radius={[5, 5, 0, 0]}
-                    />
-
-                    <Bar
-                      dataKey="total_workers"
-                      name="Available Workers"
-                      fill="#a78bfa"
-                      radius={[5, 5, 0, 0]}
-                    />
-
-                  </BarChart>
-
-                </ResponsiveContainer>
-
-              </div>
-
-              {/* INDUSTRY SUMMARY CARDS */}
-
-              <div className="industry-gap-list">
-
-                {filteredIndustryRecords.map((item) => {
-
-                  const status = getStatus(item.total_gap);
-
-                  return (
-
-                    <div
-                      className="industry-gap-card"
-                      key={item.industry}
-                    >
-
-                      <h3>{item.industry}</h3>
-
-                      <p>
-                        Total Demand:{" "}
-                        {formatNumber(item.total_demand)}
-                      </p>
-
-                      <p>
-                        Available Workers:{" "}
-                        {formatNumber(item.total_workers)}
-                      </p>
-
-                      <p>
-                        Net Skill Gap:{" "}
-                        {item.total_gap > 0 ? "+" : ""}
-                        {formatNumber(item.total_gap)}
-                      </p>
-
-                      <span
-                        className={`status-badge ${status.toLowerCase()}`}
-                      >
-                        {status}
-                      </span>
-
-                    </div>
-
-                  );
-                })}
-
-              </div>
-
-            </>
-
-          )}
-
-          <p className="data-disclaimer">
-            Industry analysis currently uses synthetic
-            demonstration data.
-          </p>
-
-        </section>
-
-        {/* ======================================
-            MOST DEMANDED SKILLS
-        ====================================== */}
-
-        <section className="skills-section">
-
-          <div className="section-heading">
-
-            <div>
-
-              <span className="section-eyebrow">
-                SKILL DEMAND INTELLIGENCE
-              </span>
-
-              <h2>
-                Most Demanded Skills in India
-              </h2>
-
-              <p>
-                Discover which skills have the highest workforce
-                demand across the available employment dataset.
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* SKILL SEARCH */}
-
-          <div className="skills-controls">
-
-            <input
-              type="search"
-              placeholder="Search skills (e.g. Python, Java)..."
-              aria-label="Search skills"
-              value={skillSearch}
-              onChange={(e) =>
-                setSkillSearch(e.target.value)
-              }
-            />
-
-            <span>
-              {filteredSkillRecords.length} skills found
-            </span>
-
-          </div>
-
-          {/* SKILL CHART */}
-
-          {skillsLoading ? (
-
-            <p className="loading-message">
-              Loading skill demand data...
-            </p>
-
-          ) : skillsError ? (
-
-            <p className="prediction-error">
-              {skillsError}
-            </p>
-
-          ) : skillRecords.length === 0 ? (
-
-            <p className="empty-state">
-              No skill data available.
-            </p>
-
-          ) : displayedSkillRecords.length === 0 ? (
-
-            <p className="empty-state">
-              No matching skills found.
-            </p>
-
-          ) : (
-
-            <div
-              className="skills-chart"
-              style={{
-                height: `${Math.max(
-                  300,
-                  displayedSkillRecords.length * 45
-                )}px`,
-              }}
-            >
-
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-              >
-
+            <div className="industry-chart">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={displayedSkillRecords}
+                  data={qualificationChartData}
                   layout="vertical"
                   margin={{
                     top: 10,
-                    right: 30,
+                    right: 25,
                     left: 30,
                     bottom: 10,
                   }}
                 >
-
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="#334155"
@@ -1774,17 +1194,20 @@ function Dashboard() {
 
                   <XAxis
                     type="number"
-                    stroke="#94a3b8"
+                    tick={{
+                      fill: "#cbd5e1",
+                      fontSize: 11,
+                    }}
+                    tickFormatter={formatCompactNumber}
                   />
 
                   <YAxis
                     type="category"
-                    dataKey="skill"
-                    width={150}
-                    stroke="#94a3b8"
+                    dataKey="qualification"
+                    width={190}
                     tick={{
                       fill: "#cbd5e1",
-                      fontSize: 12,
+                      fontSize: 11,
                     }}
                   />
 
@@ -1793,38 +1216,121 @@ function Dashboard() {
                       formatNumber(Number(value))
                     }
                     contentStyle={{
-                      backgroundColor: "#0b1120",
+                      background: "#0b1120",
                       border: "1px solid #334155",
                       borderRadius: "8px",
                       color: "#ffffff",
                     }}
                   />
 
+                  <Legend />
+
                   <Bar
-                    dataKey="total_demand"
-                    name="Total Workforce Demand"
-                    fill="#38bdf8"
-                    radius={[0, 5, 5, 0]}
+                    dataKey="fy2022_23"
+                    name="FY 2022–23"
+                    fill="#0ea5e9"
+                    radius={[0, 4, 4, 0]}
                   />
 
+                  <Bar
+                    dataKey="fy2023_24"
+                    name="FY 2023–24"
+                    fill="#a78bfa"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
-
               </ResponsiveContainer>
-
             </div>
-
           )}
 
           <p className="data-disclaimer">
-            {skillSearch.trim()
-              ? "Search results include all matching skills in the dataset."
-              : "Showing the top 10 skills by demand. Skill demand is aggregated from the synthetic demonstration dataset."}
+            Source: NCS Comparative Statistics FY 2022–23
+            and FY 2023–24. Categories and values are
+            reproduced from the published NCS report.
           </p>
-
         </section>
 
-      </main>
+        {/* =================================================
+            DATA SOURCES
+        ================================================= */}
 
+        <section className="industry-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">
+                TRANSPARENCY
+              </span>
+
+              <h2>Data Sources and Methodology</h2>
+
+              <p>
+                Official sources used in the current
+                dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div className="industry-gap-list">
+            <div className="industry-gap-card">
+              <h3>PLFS Annual Report 2025</h3>
+
+              <p>
+                State-wise Worker Population Ratio.
+              </p>
+
+              <a
+                href="https://www.mospi.gov.in/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MoSPI website
+              </a>
+            </div>
+
+            <div className="industry-gap-card">
+              <h3>PLFS Annual Report 2023–24</h3>
+
+              <p>
+                Industry-wise employment distribution,
+                Statement 7.
+              </p>
+
+              <a
+                href="https://mospi.gov.in/sites/default/files/publication_reports/AnnualReport_PLFS2023-24L2.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open PLFS report
+              </a>
+            </div>
+
+            <div className="industry-gap-card">
+              <h3>NCS Comparative Statistics</h3>
+
+              <p>
+                Vacancy statistics for FY 2022–23
+                and FY 2023–24.
+              </p>
+
+              <a
+                href="https://www.ncs.gov.in/Documents/NCS-Statistics-2022-23-24.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open NCS report
+              </a>
+            </div>
+          </div>
+
+          <p className="data-disclaimer">
+            PLFS employment indicators and NCS platform
+            vacancy statistics measure different concepts.
+            They are presented separately and are not
+            subtracted from one another to calculate a
+            national skill gap.
+          </p>
+        </section>
+      </main>
     </div>
   );
 }
