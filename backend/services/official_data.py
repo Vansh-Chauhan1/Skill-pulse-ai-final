@@ -1,165 +1,120 @@
+"""Validated loaders for the official PLFS and NCS CSV files."""
+from __future__ import annotations
+
 from pathlib import Path
 import pandas as pd
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 RAW_DIR = BACKEND_DIR / "data" / "raw"
+PLFS_DIR = RAW_DIR / "plfs"
+NCS_DIR = RAW_DIR / "ncs"
 
 
-def load_plfs_state_wpr():
-    """
-    Load the latest state-wise PLFS 2025 WPR data.
-    """
-
-    path = RAW_DIR / "plfs" / "plfs_state_wpr_2025.csv"
-
+def _read_csv(path: Path, required: list[str]) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"PLFS 2025 dataset not found: {path}"
-        )
-
-    df = pd.read_csv(path)
-
-    required_columns = [
-        "state_ut",
-        "survey_period",
-        "age_group",
-        "rural_person_wpr_pct",
-        "urban_person_wpr_pct",
-        "rural_urban_person_wpr_pct",
-    ]
-
-    missing = [
-        column
-        for column in required_columns
-        if column not in df.columns
-    ]
-
+        raise FileNotFoundError(f"Required source data file not found: {path}")
+    df = pd.read_csv(path, encoding="utf-8-sig")
+    missing = [column for column in required if column not in df.columns]
     if missing:
-        raise ValueError(
-            f"Missing PLFS columns: {missing}"
-        )
-
+        raise ValueError(f"{path.name} is missing required columns: {missing}")
+    if df.empty:
+        raise ValueError(f"Source data file is empty: {path}")
     return df
 
 
-def load_plfs_state_wpr_2023_24():
-    """
-    Retain the older PLFS dataset for historical reference.
-    """
-
-    path = RAW_DIR / "plfs" / "plfs_state_wpr_2023_24.csv"
-    return pd.read_csv(path)
-
-
-def load_plfs_industry_distribution():
-
-    path = (
-        RAW_DIR
-        / "plfs"
-        / "plfs_all_india_industry_distribution_2021_24.csv"
-    )
-
-    return pd.read_csv(path)
+def _validate_nonnegative(df: pd.DataFrame, columns: list[str], label: str) -> pd.DataFrame:
+    result = df.copy()
+    for column in columns:
+        result[column] = pd.to_numeric(result[column], errors="coerce")
+        if result[column].isna().any() or (result[column] < 0).any():
+            raise ValueError(f"{label}: invalid values in '{column}'.")
+    return result
 
 
-def load_ncs_sector_vacancies():
-
-    path = (
-        RAW_DIR
-        / "ncs"
-        / "ncs_sector_vacancies_fy2022_23_fy2023_24.csv"
-    )
-
-    return pd.read_csv(path)
-
-
-def load_ncs_qualification_vacancies():
-
-    path = (
-        RAW_DIR
-        / "ncs"
-        / "ncs_qualification_vacancies_fy2022_23_fy2023_24.csv"
-    )
-
-    return pd.read_csv(path)
-
-
-def load_ncs_summary():
-
-    path = (
-        RAW_DIR
-        / "ncs"
-        / "ncs_summary_statistics_fy2022_23_fy2023_24.csv"
-    )
-
-    return pd.read_csv(path)
-def load_plfs_monthly_cws_wpr():
-
-    path = (
-        RAW_DIR
-        / "plfs"
-        / "plfs_monthly_cws_wpr_2025_2026.csv"
-    )
-
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Monthly PLFS dataset not found: {path}"
-        )
-
-    df = pd.read_csv(path)
-
-    required_columns = [
-        "reference_month",
-        "age_group",
-        "status_approach",
-        "rural_person_wpr_pct",
-        "urban_person_wpr_pct",
+def load_plfs_state_wpr() -> pd.DataFrame:
+    required = [
+        "state_ut", "survey_period", "age_group", "status_approach",
+        "rural_person_wpr_pct", "urban_person_wpr_pct",
         "rural_urban_person_wpr_pct",
     ]
+    df = _read_csv(PLFS_DIR / "plfs_state_wpr_2025.csv", required)
+    if df["state_ut"].astype(str).str.strip().duplicated().any():
+        raise ValueError("PLFS state WPR file contains duplicate state/UT names.")
+    for column in required[-3:]:
+        values = pd.to_numeric(df[column], errors="coerce").dropna()
+        if not values.between(0, 100).all():
+            raise ValueError(f"PLFS state WPR '{column}' must be between 0 and 100.")
+    return df
 
-    missing = [
-        col for col in required_columns
-        if col not in df.columns
+
+def load_plfs_state_wpr_2023_24() -> pd.DataFrame:
+    return _read_csv(
+        PLFS_DIR / "plfs_state_wpr_2023_24.csv",
+        ["state_ut"],
+    )
+
+
+def load_plfs_industry_distribution() -> pd.DataFrame:
+    required = [
+        "survey_period", "industry_broad_division_nic08",
+        "rural_urban_person_pct", "source_url",
     ]
+    df = _read_csv(PLFS_DIR / "plfs_all_india_industry_distribution_2021_24.csv", required)
+    df = _validate_nonnegative(df, ["rural_urban_person_pct"], "PLFS industry distribution")
+    if not df["rural_urban_person_pct"].between(0, 100).all():
+        raise ValueError("PLFS industry employment shares must be between 0 and 100.")
+    return df
 
-    if missing:
-        raise ValueError(
-            f"Missing columns: {missing}"
-        )
 
-    # Validate monthly dates
+def load_plfs_monthly_cws_wpr() -> pd.DataFrame:
+    required = [
+        "reference_month", "age_group", "status_approach",
+        "rural_person_wpr_pct", "urban_person_wpr_pct",
+        "rural_urban_person_wpr_pct", "source_document", "source_url",
+    ]
+    df = _read_csv(PLFS_DIR / "plfs_monthly_cws_wpr_2025_2026.csv", required)
+    df = df.copy()
     df["parsed_month"] = pd.to_datetime(
-        df["reference_month"],
-        format="%Y-%m",
-        errors="raise"
+        df["reference_month"].astype(str), format="%Y-%m", errors="coerce"
     )
+    if df["parsed_month"].isna().any():
+        raise ValueError("Monthly PLFS reference_month must use YYYY-MM.")
+    if df["parsed_month"].duplicated().any():
+        raise ValueError("Monthly PLFS data contains duplicate months.")
+    for column in ["rural_person_wpr_pct", "urban_person_wpr_pct", "rural_urban_person_wpr_pct"]:
+        df[column] = pd.to_numeric(df[column], errors="coerce")
+        if df[column].isna().any() or not df[column].between(0, 100).all():
+            raise ValueError(f"Monthly PLFS '{column}' must be numeric percentages from 0 to 100.")
+    df = df.sort_values("parsed_month").reset_index(drop=True)
+    periods = pd.PeriodIndex(df["parsed_month"], freq="M")
+    expected = pd.period_range(periods.min(), periods.max(), freq="M")
+    if not periods.equals(expected):
+        raise ValueError("Monthly PLFS CWS WPR has missing months.")
+    return df.drop(columns=["parsed_month"])
 
-    # Prevent duplicate months
-    if df["reference_month"].duplicated().any():
-        raise ValueError(
-            "Duplicate monthly observations found."
-        )
 
-    # Validate numeric features
-    numeric_columns = [
-        "rural_person_wpr_pct",
-        "urban_person_wpr_pct",
-        "rural_urban_person_wpr_pct",
+def load_ncs_sector_vacancies() -> pd.DataFrame:
+    required = [
+        "ncs_sector_as_published", "vacancies_fy2022_23",
+        "vacancies_fy2023_24", "source_report", "source_url",
     ]
+    df = _read_csv(NCS_DIR / "ncs_sector_vacancies_fy2022_23_fy2023_24.csv", required)
+    return _validate_nonnegative(df, ["vacancies_fy2022_23", "vacancies_fy2023_24"], "NCS sector vacancies")
 
-    for col in numeric_columns:
-        df[col] = pd.to_numeric(
-            df[col],
-            errors="raise"
-        )
 
-        if not df[col].between(0, 100).all():
-            raise ValueError(
-                f"Invalid percentage values in {col}"
-            )
+def load_ncs_qualification_vacancies() -> pd.DataFrame:
+    required = [
+        "qualification_as_published", "vacancies_fy2022_23",
+        "vacancies_fy2023_24", "source_report", "source_url",
+    ]
+    df = _read_csv(NCS_DIR / "ncs_qualification_vacancies_fy2022_23_fy2023_24.csv", required)
+    return _validate_nonnegative(df, ["vacancies_fy2022_23", "vacancies_fy2023_24"], "NCS qualification vacancies")
 
-    df = df.sort_values("parsed_month")
 
-    df = df.drop(columns=["parsed_month"])
-
-    return df
+def load_ncs_summary() -> pd.DataFrame:
+    required = [
+        "metric_as_published", "value_fy2022_23",
+        "value_fy2023_24", "source_report", "source_url",
+    ]
+    df = _read_csv(NCS_DIR / "ncs_summary_statistics_fy2022_23_fy2023_24.csv", required)
+    return _validate_nonnegative(df, ["value_fy2022_23", "value_fy2023_24"], "NCS summary")
