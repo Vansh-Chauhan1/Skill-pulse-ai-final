@@ -114,6 +114,13 @@ type WprForecastResponse = {
   history_start: string;
   history_end: string;
   selected_model: string;
+  best_validated_model?: string;
+  trend_model: string;
+  trend_model_metrics?: ForecastMetric | null;
+  trend_forecast: Array<{
+    reference_month: string;
+    forecast_wpr_pct: number;
+  }>;
   validation: {
     initial_training_observations: number;
     backtest_observations: number;
@@ -142,6 +149,7 @@ type WprChartPoint = {
   reference_month: string;
   actualWpr: number | null;
   forecastWpr: number | null;
+  trendWpr: number | null;
 };
 
 // ======================================================
@@ -488,6 +496,7 @@ function Dashboard() {
       reference_month: item.reference_month,
       actualWpr: Number(item.actual_wpr_pct),
       forecastWpr: null,
+      trendWpr: null,
     }));
 
     // Anchor the forecast line to the final observed WPR value.
@@ -495,12 +504,21 @@ function Dashboard() {
     historicalPoints[lastIndex] = {
       ...historicalPoints[lastIndex],
       forecastWpr: historicalPoints[lastIndex].actualWpr,
+      trendWpr: historicalPoints[lastIndex].actualWpr,
     };
+
+    const trendByMonth = new Map(
+      (wprForecast.trend_forecast ?? []).map((item) => [
+        item.reference_month,
+        Number(item.forecast_wpr_pct),
+      ])
+    );
 
     const futurePoints: WprChartPoint[] = wprForecast.forecast.map((item) => ({
       reference_month: item.reference_month,
       actualWpr: null,
       forecastWpr: Number(item.forecast_wpr_pct),
+      trendWpr: trendByMonth.get(item.reference_month) ?? null,
     }));
 
     return [...historicalPoints, ...futurePoints];
@@ -621,6 +639,10 @@ function Dashboard() {
                   <strong>{wprForecast.selected_model.toUpperCase()}</strong>
                 </div>
                 <div className="forecast-kpi">
+                  <span>Dynamic trend model</span>
+                  <strong>{wprForecast.trend_model.replace(/_/g, " ").toUpperCase()}</strong>
+                </div>
+                <div className="forecast-kpi">
                   <span>Backtest observations</span>
                   <strong>{wprForecast.validation.backtest_observations}</strong>
                 </div>
@@ -675,10 +697,20 @@ function Dashboard() {
                     <Line
                       type="monotone"
                       dataKey="forecastWpr"
-                      name="Forecasted WPR"
+                      name="Best validated baseline"
                       stroke="#f59e0b"
                       strokeWidth={2.5}
                       strokeDasharray="6 4"
+                      dot={{ r: 4 }}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="trendWpr"
+                      name="Holt dynamic trend scenario"
+                      stroke="#c084fc"
+                      strokeWidth={2.5}
+                      strokeDasharray="3 3"
                       dot={{ r: 4 }}
                       connectNulls={false}
                     />
@@ -692,14 +724,20 @@ function Dashboard() {
                   <thead>
                     <tr>
                       <th>Forecast Month</th>
-                      <th>Predicted WPR</th>
+                      <th>Best validated baseline</th>
+                      <th>Dynamic trend scenario</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {wprForecast.forecast.map((item) => (
+                    {wprForecast.forecast.map((item, index) => (
                       <tr key={item.reference_month}>
                         <td>{item.reference_month}</td>
                         <td>{formatPercentage(item.forecast_wpr_pct)}</td>
+                        <td>
+                          {formatPercentage(
+                            wprForecast.trend_forecast?.[index]?.forecast_wpr_pct
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -729,7 +767,13 @@ function Dashboard() {
                           <td>{item.mae.toFixed(4)}</td>
                           <td>{item.rmse.toFixed(4)}</td>
                           <td>{item.smape_pct.toFixed(4)}%</td>
-                          <td>{isSelected ? "Selected" : "Compared"}</td>
+                          <td>
+                            {isSelected
+                              ? "Best validated baseline"
+                              : item.model === wprForecast.trend_model
+                                ? "Dynamic trend scenario"
+                                : "Compared"}
+                          </td>
                         </tr>
                       );
                     })}
@@ -741,9 +785,12 @@ function Dashboard() {
                 {wprForecast.methodology_warning}
               </p>
               <p className="data-disclaimer">
-                Source: Monthly PLFS Current Weekly Status series. Forecasts are
-                produced by comparing naive and drift baselines using expanding-window,
-                one-month-ahead rolling-origin validation. MAE and RMSE are measured
+                Source: Monthly PLFS Current Weekly Status series. Models are compared
+                using expanding-window, one-month-ahead rolling-origin validation.
+                The flat baseline is retained when it has the lowest validation error;
+                the Holt line is shown separately to expose a changing trend scenario.
+                The trend scenario is not represented as more accurate unless its
+                validation metrics support that conclusion. MAE and RMSE are measured
                 in WPR percentage points.
               </p>
             </>
