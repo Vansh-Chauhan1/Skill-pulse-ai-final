@@ -10,8 +10,10 @@ routes for the compact official-data pipeline and NCS sector-demand analysis.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,6 +47,8 @@ from services.sector_demand_engine import (
 from services.intelligence_engine import build_market_intelligence_overview
 from routers.ai import router as ai_router
 
+load_dotenv()
+
 
 app = FastAPI(
     title="SkillPulse AI",
@@ -71,6 +75,11 @@ app.add_middleware(
         "http://127.0.0.1:5175",
         "http://localhost:5176",
         "http://127.0.0.1:5176",
+        *[
+            origin.strip().rstrip("/")
+            for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+            if origin.strip()
+        ],
     ],
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1):517\d+",
     allow_credentials=True,
@@ -78,7 +87,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+app.include_router(ai_router)
 # ---------------------------------------------------------------------------
 # SHARED RESPONSE HELPERS
 # ---------------------------------------------------------------------------

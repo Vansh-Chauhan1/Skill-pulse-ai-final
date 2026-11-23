@@ -1,7 +1,10 @@
 import axios from "axios";
+import type { ChatApiResponse, ChatTurn } from "../components/chat/types";
 
 const API = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL?.trim() ||
+    (import.meta.env.DEV ? "http://127.0.0.1:8000" : ""),
   headers: {
     "Content-Type": "application/json",
   },
@@ -130,6 +133,22 @@ export const getOfficialPlfsWprForecast = async (
     }
   );
 
+  return response.data;
+};
+
+// ==========================================
+// AI ASSISTANT API
+// ==========================================
+
+export const sendAiChat = async (
+  question: string,
+  history: ChatTurn[]
+): Promise<ChatApiResponse> => {
+  const response = await API.post<ChatApiResponse>(
+    "/api/ai/chat",
+    { question, history },
+    { timeout: 90000 }
+  );
   return response.data;
 };
 

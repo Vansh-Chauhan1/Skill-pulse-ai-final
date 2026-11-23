@@ -375,9 +375,86 @@
 }
 
 .map-area {
+  position: relative;
   width: 100%;
   min-width: 0;
   overflow: hidden;
+}
+
+.state-sector-panel {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: min(460px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 14px;
+  color: #e2e8f0;
+  background: rgba(11, 17, 32, 0.97);
+  border: 1px solid #38bdf8;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
+}
+
+.state-sector-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.state-sector-panel__header span {
+  color: #7dd3fc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+.state-sector-panel__header h3 {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.state-sector-panel__close {
+  flex: none;
+  border: 0;
+  padding: 0 4px;
+  color: #cbd5e1;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.state-sector-panel__table-wrap {
+  overflow-x: auto;
+}
+
+.state-sector-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.state-sector-panel th,
+.state-sector-panel td {
+  padding: 7px 6px;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+
+.state-sector-panel th {
+  color: #7dd3fc;
+}
+
+.state-sector-panel p {
+  margin: 10px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .map-area svg {

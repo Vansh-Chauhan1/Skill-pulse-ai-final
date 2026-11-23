@@ -7,7 +7,10 @@ import {
   Marker,
 } from "react-simple-maps";
 
-import { getOfficialPlfsStateWpr } from "../services/api";
+import {
+  getOfficialPlfsStateWpr,
+  getSkillGaps,
+} from "../services/api";
 
 const geoUrl = "/india-states.geojson";
 
@@ -26,6 +29,15 @@ type WprRecord = {
 
   rural_urban_male_wpr_pct: number | null;
   rural_urban_female_wpr_pct: number | null;
+};
+
+type SkillGapRecord = {
+  state: string;
+  industry: string;
+  demand: number;
+  available_workers: number;
+  skill_gap: number;
+  gap_percentage: number;
 };
 
 // ==========================================
@@ -104,6 +116,12 @@ function formatWpr(value: number | null | undefined) {
   return `${Number(value).toFixed(1)}%`;
 }
 
+function formatCount(value: number) {
+  return Number(value).toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  });
+}
+
 // ==========================================
 // STATE LABEL COORDINATES
 // ==========================================
@@ -152,6 +170,11 @@ function IndiaSkillMap() {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+
+  const [skillGapRows, setSkillGapRows] = useState<SkillGapRecord[]>([]);
+  const [skillGapLoading, setSkillGapLoading] = useState(true);
+  const [skillGapError, setSkillGapError] = useState("");
+  const [sectorPanelOpen, setSectorPanelOpen] = useState(false);
 
   // ==========================================
   // FETCH OFFICIAL PLFS DATA
@@ -226,6 +249,33 @@ function IndiaSkillMap() {
 
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    getSkillGaps()
+      .then((records: SkillGapRecord[]) => {
+        if (isMounted) {
+          setSkillGapRows(records);
+          setSkillGapError("");
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load state-sector sample data:", err);
+        if (isMounted) {
+          setSkillGapError("Unable to load state-sector sample data.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setSkillGapLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // ==========================================
   // SELECTED STATE DATA
   // ==========================================
@@ -244,6 +294,12 @@ function IndiaSkillMap() {
     combinedWpr !== null
       ? Math.min(Math.max(combinedWpr, 0), 100)
       : 0;
+
+  const selectedSkillGapRows = skillGapRows.filter(
+    (row) =>
+      normalizeStateName(row.state) ===
+      normalizeStateName(selectedState)
+  );
 
   // ==========================================
   // RENDER
@@ -298,9 +354,10 @@ function IndiaSkillMap() {
                     geography={geo}
                     className="india-state"
                     aria-label={`Select ${stateName}`}
-                    onClick={() =>
+                    onClick={() => {
                       setSelectedState(stateName)
-                    }
+                      setSectorPanelOpen(true)
+                    }}
                     fill={getWprColor(
                       data?.rural_urban_person_wpr_pct
                     )}
@@ -409,6 +466,73 @@ function IndiaSkillMap() {
           ))}
 
         </div>
+
+        {sectorPanelOpen && (
+          <aside
+            className="state-sector-panel"
+            aria-labelledby="state-sector-panel-title"
+          >
+            <div className="state-sector-panel__header">
+              <div>
+                <span>ILLUSTRATIVE SAMPLE · NOT OFFICIAL</span>
+                <h3 id="state-sector-panel-title">
+                  {selectedState} sector gaps
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="state-sector-panel__close"
+                onClick={() => setSectorPanelOpen(false)}
+                aria-label="Close state sector details"
+              >
+                ×
+              </button>
+            </div>
+
+            {skillGapLoading ? (
+              <p>Loading sector details...</p>
+            ) : skillGapError ? (
+              <p className="prediction-error">{skillGapError}</p>
+            ) : selectedSkillGapRows.length > 0 ? (
+              <>
+                <div className="state-sector-panel__table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Sector</th>
+                        <th>Demand</th>
+                        <th>Workers</th>
+                        <th>Gap</th>
+                        <th>Gap %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedSkillGapRows.map((row) => (
+                        <tr key={`${row.state}-${row.industry}`}>
+                          <td>{row.industry}</td>
+                          <td>{formatCount(row.demand)}</td>
+                          <td>{formatCount(row.available_workers)}</td>
+                          <td>{formatCount(row.skill_gap)}</td>
+                          <td>{Number(row.gap_percentage).toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p>
+                  Gap = demand minus available workers. These sample figures
+                  are arithmetic estimates, not official data or a time-based
+                  forecast.
+                </p>
+              </>
+            ) : (
+              <p>
+                No illustrative sector records are available for this state.
+                The current sample covers six states only.
+              </p>
+            )}
+          </aside>
+        )}
 
       </div>
 
