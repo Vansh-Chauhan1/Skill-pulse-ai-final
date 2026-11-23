@@ -46,3 +46,8 @@ export const getIndustries = async () => {
   const response = await API.get("/api/industries");
   return response.data;
 };
+
+export const getShortages = async () => {
+  const response = await API.get("/api/shortages");
+  return response.data;
+};

@@ -1,9 +1,22 @@
+/* ==========================================
+   GLOBAL DASHBOARD
+========================================== */
+
 .dashboard {
   min-height: 100vh;
+  width: 100%;
   background: #0b1120;
-  color: white;
+  color: #ffffff;
   font-family: Arial, sans-serif;
 }
+
+.dashboard * {
+  box-sizing: border-box;
+}
+
+/* ==========================================
+   NAVIGATION
+========================================== */
 
 .dashboard-nav {
   display: flex;
@@ -11,11 +24,13 @@
   align-items: center;
   padding: 20px 5%;
   border-bottom: 1px solid #263449;
+  background: #0b1120;
 }
 
 .dashboard-logo {
   color: #38bdf8;
   font-size: 24px;
+  font-weight: 700;
 }
 
 .nav-links {
@@ -26,28 +41,90 @@
 .nav-links a {
   color: #cbd5e1;
   text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
 }
 
+.nav-links a:hover {
+  color: #38bdf8;
+}
+
+/* ==========================================
+   MAIN CONTENT
+========================================== */
+
 .dashboard-content {
+  width: 100%;
+  max-width: 1600px;
+  margin: auto;
   padding: 40px 5%;
 }
 
+/* ==========================================
+   DASHBOARD HEADER
+========================================== */
+
 .dashboard-header {
-  margin-bottom: 30px;
+  margin-bottom: 35px;
+}
+
+.dashboard-eyebrow {
+  display: inline-block;
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
 }
 
 .dashboard-header h1 {
-  font-size: 32px;
-  margin-bottom: 10px;
+  font-size: 34px;
+  margin-bottom: 12px;
 }
 
 .dashboard-header p {
   color: #94a3b8;
+  line-height: 1.7;
+  font-size: 15px;
 }
+
+/* ==========================================
+   SECTION HEADINGS
+========================================== */
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.section-heading h2 {
+  font-size: 24px;
+  margin: 7px 0 10px;
+}
+
+.section-heading p {
+  color: #94a3b8;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.section-eyebrow {
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+}
+
+/* ==========================================
+   NATIONAL STATISTICS
+========================================== */
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -57,50 +134,38 @@
   border: 1px solid #263449;
   padding: 25px;
   border-radius: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: #38bdf8;
 }
 
 .stat-card h3 {
   color: #94a3b8;
   font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .stat-card h2 {
   font-size: 28px;
-  margin-top: 15px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
 }
 
-.map-section {
-  background: #151f32;
-  padding: 25px;
-  border: 1px solid #263449;
-  border-radius: 16px;
+.shortage-value {
+  color: #f87171 !important;
 }
 
-.map-header {
-  margin-bottom: 20px;
+.surplus-value {
+  color: #38bdf8 !important;
 }
 
-.map-header p {
-  color: #94a3b8;
-  margin-top: 8px;
-}
+/* ==========================================
+   AI PREDICTION SECTION
+========================================== */
 
-.india-state:hover,
-.india-state:active {
-  fill: #93c5fd;
-}
-
-.india-state:focus:not(:focus-visible) {
-  outline: none;
-}
-
-@media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* AI Prediction Section */
 .prediction-section {
   background: #151f32;
   border: 1px solid #263449;
@@ -109,17 +174,25 @@
   margin-bottom: 30px;
 }
 
-.prediction-section h2 {
-  font-size: 24px;
-  margin-bottom: 10px;
+.live-indicator {
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 
-.prediction-section > p {
+.section-description {
   color: #94a3b8;
+  font-size: 14px;
   margin-bottom: 25px;
+  line-height: 1.6;
 }
 
-/* Prediction Form */
+/* ==========================================
+   PREDICTION FORM
+========================================== */
+
 .prediction-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
@@ -140,11 +213,12 @@
 }
 
 .form-group input {
+  width: 100%;
   background: #0b1120;
   border: 1px solid #334155;
   border-radius: 8px;
   padding: 13px;
-  color: white;
+  color: #ffffff;
   font-size: 15px;
   outline: none;
 }
@@ -153,10 +227,9 @@
   border-color: #38bdf8;
 }
 
-/* Predict Button */
-.prediction-form button {
+.primary-action {
   background: #0284c7;
-  color: white;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   padding: 14px 22px;
@@ -164,18 +237,22 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease;
+  white-space: nowrap;
 }
 
-.prediction-form button:hover {
+.primary-action:hover {
   background: #0369a1;
 }
 
-.prediction-form button:disabled {
+.primary-action:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* Prediction Result */
+/* ==========================================
+   PREDICTION RESULT
+========================================== */
+
 .prediction-result {
   margin-top: 25px;
   padding: 22px;
@@ -184,84 +261,71 @@
   border-radius: 10px;
 }
 
-.prediction-result h3 {
-  color: #38bdf8;
-  margin-bottom: 15px;
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
-.prediction-result p {
-  color: #cbd5e1;
-  margin: 10px 0;
+.result-header h3 {
+  color: #38bdf8;
+  font-size: 18px;
 }
+
+.prediction-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Labels on left, values on right */
+
+.prediction-metrics div {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 15px;
+  background: #151f32;
+  border-radius: 8px;
+}
+
+.prediction-metrics span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.prediction-metrics strong {
+  color: #ffffff;
+  font-size: 16px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================
+   ERROR AND LOADING MESSAGES
+========================================== */
 
 .prediction-error {
   color: #f87171 !important;
   margin-top: 15px;
-}
-
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-  .prediction-form {
-    grid-template-columns: 1fr;
-  }
-
-  .prediction-section {
-    padding: 20px;
-  }
-}
-
-/* State-wise Employment Table */
-
-.state-table-section {
-  margin-top: 30px;
-  padding: 28px;
-  background: #151f32;
-  border: 1px solid #263449;
-  border-radius: 16px;
-}
-
-.table-heading {
-  margin-bottom: 25px;
-}
-
-.table-heading h2 {
-  font-size: 24px;
-  margin-bottom: 10px;
-}
-
-.table-heading p {
-  color: #94a3b8;
-}
-
-.table-scroll {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.state-table {
-  width: 100%;
-  min-width: 750px;
-  border-collapse: collapse;
-}
-
-.state-table th {
-  color: #38bdf8;
-  text-align: left;
-  padding: 16px;
-  border-bottom: 1px solid #334155;
-  font-size: 13px;
-}
-
-.state-table td {
-  color: #cbd5e1;
-  padding: 16px;
-  border-bottom: 1px solid #263449;
   font-size: 14px;
+  line-height: 1.6;
 }
 
-.state-table tbody tr:hover {
-  background: #1e293b;
+.loading-message,
+.empty-state {
+  color: #94a3b8;
+  text-align: center;
+  padding: 25px;
 }
+
+/* ==========================================
+   STATUS BADGES
+========================================== */
 
 .status-badge {
   display: inline-block;
@@ -269,6 +333,7 @@
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .status-badge.shortage {
@@ -286,8 +351,532 @@
   color: #86efac;
 }
 
-@media (max-width: 768px) {
-  .state-table-section {
-    padding: 18px;
+/* ==========================================
+   INDIA MAP SECTION
+========================================== */
+
+.map-section {
+  background: #151f32;
+  padding: 28px;
+  border: 1px solid #263449;
+  border-radius: 16px;
+  margin-bottom: 30px;
+}
+
+.map-section .section-heading {
+  margin-bottom: 20px;
+}
+
+.india-map-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(230px, 0.8fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.map-area {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-area svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.india-state {
+  cursor: pointer;
+  transition: fill 0.2s ease;
+}
+
+.india-state:hover,
+.india-state:active {
+  fill: #93c5fd;
+}
+
+.india-state:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Selected State Panel */
+
+.state-info {
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 25px;
+  min-width: 0;
+}
+
+.state-info > span {
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.state-info h2 {
+  margin: 15px 0;
+  font-size: 24px;
+}
+
+.state-info h1 {
+  margin: 12px 0;
+  font-size: 38px;
+}
+
+.state-info h3 {
+  margin-bottom: 15px;
+}
+
+.state-info p {
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 12px;
+}
+
+/* Map Progress */
+
+.skill-progress {
+  width: 100%;
+  height: 9px;
+  border-radius: 10px;
+  background: #334155;
+  overflow: hidden;
+  margin: 15px 0;
+}
+
+.skill-progress div {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+/* ==========================================
+   STATE-WISE EMPLOYMENT TABLE
+========================================== */
+
+.state-table-section {
+  margin-top: 30px;
+  padding: 28px;
+  background: #151f32;
+  border: 1px solid #263449;
+  border-radius: 16px;
+}
+
+.record-count {
+  background: #082f49;
+  color: #7dd3fc;
+  padding: 8px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* State Search and Sort */
+
+.table-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.table-controls input,
+.table-controls select {
+  background: #0b1120;
+  color: #ffffff;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 15px;
+  font-size: 14px;
+  outline: none;
+}
+
+.table-controls input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.table-controls select {
+  min-width: 220px;
+  cursor: pointer;
+}
+
+.table-controls input:focus,
+.table-controls select:focus {
+  border-color: #38bdf8;
+}
+
+.table-controls input::placeholder {
+  color: #64748b;
+}
+
+/* State Table */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.state-table {
+  width: 100%;
+  min-width: 750px;
+  border-collapse: collapse;
+}
+
+.state-table th {
+  background: #0b1120;
+  color: #38bdf8;
+  text-align: left;
+  padding: 16px;
+  border-bottom: 1px solid #334155;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.state-table td {
+  color: #cbd5e1;
+  padding: 16px;
+  border-bottom: 1px solid #263449;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.state-name {
+  font-weight: 600;
+  color: #ffffff !important;
+}
+
+.state-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.state-table tbody tr:hover {
+  background: #1e293b;
+}
+
+.state-table .empty-state {
+  text-align: center;
+  padding: 25px;
+}
+
+.data-disclaimer {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.7;
+  margin-top: 20px;
+}
+
+/* ==========================================
+   TOP 10 SHORTAGE STATES
+========================================== */
+
+.top-shortage-section {
+  margin-top: 30px;
+  padding: 28px;
+  background: #151f32;
+  border: 1px solid #263449;
+  border-radius: 16px;
+}
+
+.top-shortage-chart {
+  width: 100%;
+  min-height: 280px;
+  margin-top: 20px;
+}
+
+/* ==========================================
+   INDUSTRY-WISE ANALYSIS
+========================================== */
+
+.industry-section {
+  margin-top: 30px;
+  padding: 28px;
+  background: #151f32;
+  border: 1px solid #263449;
+  border-radius: 16px;
+}
+
+/* Industry Filter */
+
+.industry-filter {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.industry-filter label {
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.industry-filter select {
+  background: #0b1120;
+  color: #ffffff;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 220px;
+  outline: none;
+  cursor: pointer;
+}
+
+.industry-filter select:focus {
+  border-color: #38bdf8;
+}
+
+/* Industry Chart */
+
+.industry-chart {
+  width: 100%;
+  height: 360px;
+  margin-top: 20px;
+  min-width: 0;
+}
+
+/* Industry Summary Cards */
+
+.industry-gap-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.industry-gap-card {
+  padding: 20px;
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  transition: border-color 0.2s ease;
+}
+
+.industry-gap-card:hover {
+  border-color: #38bdf8;
+}
+
+.industry-gap-card h3 {
+  color: #38bdf8;
+  margin-bottom: 15px;
+  font-size: 17px;
+}
+
+.industry-gap-card p {
+  color: #cbd5e1;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.industry-gap-card strong {
+  color: #ffffff;
+}
+
+/* ==========================================
+   MOST DEMANDED SKILLS
+========================================== */
+
+.skills-section {
+  margin-top: 30px;
+  padding: 28px;
+  background: #151f32;
+  border: 1px solid #263449;
+  border-radius: 16px;
+}
+
+/* Skill Search */
+
+.skills-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.skills-controls input {
+  flex: 1;
+  min-width: 220px;
+  background: #0b1120;
+  color: #ffffff;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 13px 16px;
+  font-size: 14px;
+  outline: none;
+}
+
+.skills-controls input::placeholder {
+  color: #64748b;
+}
+
+.skills-controls input:focus {
+  border-color: #38bdf8;
+}
+
+.skills-controls span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* Skills Chart */
+
+.skills-chart {
+  width: 100%;
+  min-height: 300px;
+  margin-top: 20px;
+}
+
+/* ==========================================
+   GENERAL RESPONSIVENESS
+========================================== */
+
+@media (max-width: 1000px) {
+
+  .prediction-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .industry-gap-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .india-map-container {
+    grid-template-columns: 1fr;
+  }
+
+  .state-info {
+    width: 100%;
+  }
+
+}
+
+@media (max-width: 768px) {
+
+  .dashboard-content {
+    padding: 30px 4%;
+  }
+
+  .dashboard-nav {
+    padding: 18px 4%;
+  }
+
+  .dashboard-header h1 {
+    font-size: 28px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-form {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-section,
+  .state-table-section,
+  .top-shortage-section,
+  .industry-section,
+  .skills-section,
+  .map-section {
+    padding: 20px;
+  }
+
+  .industry-gap-list {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+
+  .industry-chart {
+    height: 350px;
+  }
+
+}
+
+@media (max-width: 600px) {
+
+  .dashboard-content {
+    padding: 25px 4%;
+  }
+
+  .dashboard-logo {
+    font-size: 20px;
+  }
+
+  .nav-links {
+    gap: 15px;
+  }
+
+  .nav-links a {
+    font-size: 12px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 25px;
+  }
+
+  .section-heading h2 {
+    font-size: 20px;
+  }
+
+  .table-controls {
+    flex-direction: column;
+  }
+
+  .table-controls input,
+  .table-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .industry-filter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .industry-filter select {
+    width: 100%;
+  }
+
+  .skills-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skills-controls input {
+    width: 100%;
+  }
+
+  .prediction-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-metrics div {
+    gap: 12px;
+  }
+
+  .result-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+}
+
+@media (max-width: 380px) {
+
+  .dashboard-logo {
+    font-size: 18px;
+  }
+
 }
