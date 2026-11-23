@@ -6,11 +6,16 @@ import time
 from collections import defaultdict, deque
 from typing import Any, Deque, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from services.ai_context import build_chat_context
-from services.ai_service import AIServiceError, generate_answer, llm_status
+from services.ai_service import (
+    AIServiceError,
+    generate_answer,
+    generate_forecast_interpretation,
+    llm_status,
+)
 
 logger = logging.getLogger("skillpulse.ai.router")
 
@@ -37,6 +42,12 @@ class ChatResponse(BaseModel):
     data_retrieved_at: str
     focus_states: List[str] = Field(default_factory=list)
     topics: List[str] = Field(default_factory=list)
+
+
+class ForecastInterpretationResponse(BaseModel):
+    success: bool
+    answer: str
+    forecast_horizon: int
 
 
 class SlidingWindowLimiter:
@@ -92,13 +103,41 @@ def ai_health():
     return {"status": "ok", **llm_status()}
 
 
+@router.get(
+    "/forecast-interpretation",
+    response_model=ForecastInterpretationResponse,
+)
+def forecast_interpretation(
+    request: Request,
+    horizon: int = Query(default=1, ge=1, le=3),
+):
+    _enforce_rate_limit(request)
+    try:
+        from ml.plfs_forecasting import build_plfs_wpr_forecast
+
+        forecast = build_plfs_wpr_forecast(horizon=horizon)
+        answer = generate_forecast_interpretation(forecast)
+    except Exception:  # noqa: BLE001
+        logger.exception("Unexpected error generating forecast interpretation")
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error while generating the forecast interpretation.",
+        )
+
+    return ForecastInterpretationResponse(
+        success=True,
+        answer=answer,
+        forecast_horizon=horizon,
+    )
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, request: Request):
     _enforce_rate_limit(request)
     question, history = _prepare(payload)
     try:
         context = await build_chat_context(question, history)
-        answer = await generate_answer(question, history, context.text)
+        answer = generate_answer(question, context.text)
     except AIServiceError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message)
     except HTTPException:

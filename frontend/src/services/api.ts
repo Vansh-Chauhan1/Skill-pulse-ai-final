@@ -140,6 +140,21 @@ export const getOfficialPlfsWprForecast = async (
 // AI ASSISTANT API
 // ==========================================
 
+export const getAiForecastInterpretation = async (
+  horizon: number
+): Promise<{ success: boolean; answer: string; forecast_horizon: number }> => {
+  const response = await API.get<{
+    success: boolean;
+    answer: string;
+    forecast_horizon: number;
+  }>("/api/ai/forecast-interpretation", {
+    params: { horizon },
+    timeout: 90000,
+  });
+
+  return response.data;
+};
+
 export const sendAiChat = async (
   question: string,
   history: ChatTurn[]
@@ -149,6 +164,18 @@ export const sendAiChat = async (
     { question, history },
     { timeout: 90000 }
   );
+  return response.data;
+};
+
+// ==========================================
+// OFFICIAL NCS SECTOR DEMAND INTELLIGENCE
+// ==========================================
+
+export const getOfficialSectorDemandTrends = async () => {
+  const response = await API.get(
+    "/api/analytics/sector-demand-trends"
+  );
+
   return response.data;
 };
 
