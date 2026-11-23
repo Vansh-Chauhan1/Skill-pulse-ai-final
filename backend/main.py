@@ -43,6 +43,7 @@ from services.sector_demand_engine import (
     load_sector_demand_trends,
 )
 from services.intelligence_engine import build_market_intelligence_overview
+from routers.ai import router as ai_router
 
 
 app = FastAPI(
