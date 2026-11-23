@@ -116,4 +116,21 @@ export const getOfficialNcsSummary = async () => {
   return response.data;
 };
 
+// ==========================================
+// OFFICIAL PLFS WPR FORECAST API
+// ==========================================
+
+export const getOfficialPlfsWprForecast = async (
+  horizon: number = 1
+) => {
+  const response = await API.get(
+    "/api/official/plfs/wpr-forecast",
+    {
+      params: { horizon },
+    }
+  );
+
+  return response.data;
+};
+
 export default API;

@@ -1,0 +1,36 @@
+{
+  "generated_at_utc": "2026-11-23T06:29:06.871505+00:00",
+  "record_count": 225,
+  "dataset_record_counts": {
+    "plfs_monthly_wpr": 57,
+    "plfs_annual_state_wpr": 110,
+    "plfs_industry_distribution": 24,
+    "ncs_sector_vacancies": 18,
+    "ncs_qualification_vacancies": 10,
+    "ncs_platform_summary": 6
+  },
+  "source_files": [
+    "plfs/plfs_monthly_cws_wpr_2025_2026.csv",
+    "plfs/plfs_state_wpr_2025.csv",
+    "plfs/plfs_all_india_industry_distribution_2021_24.csv",
+    "ncs/ncs_sector_vacancies_fy2022_23_fy2023_24.csv",
+    "ncs/ncs_qualification_vacancies_fy2022_23_fy2023_24.csv",
+    "ncs/ncs_summary_statistics_fy2022_23_fy2023_24.csv"
+  ],
+  "quality_checks": {
+    "all_required_source_columns_present": true,
+    "monthly_wpr_has_contiguous_months": true,
+    "wpr_percentages_within_0_and_100": true,
+    "ncs_counts_non_negative": true,
+    "duplicate_observations_absent": true,
+    "all_records_have_source_provenance": true,
+    "incompatible_units_and_populations_kept_separate": true
+  },
+  "methodology": "Long-format consolidation only. PLFS WPR percentages, PLFS worker industry shares, NCS vacancy counts, and NCS platform activity remain separate indicators. No PLFS-NCS subtraction or synthetic skill-gap target is created.",
+  "forecasting_readiness": {
+    "monthly_plfs_wpr": "Suitable for the existing short-horizon exploratory baseline forecast only; current history is short.",
+    "plfs_industry_distribution": "Three annual points; descriptive trend only, insufficient for a reliable ML forecast.",
+    "ncs_sector_and_qualification_vacancies": "Two annual observations; descriptive comparison only, insufficient for ML forecasting.",
+    "genuine_skill_gap": "Not model-ready until occupation/skill-level labour supply and demand are available in compatible units and periods."
+  }
+}

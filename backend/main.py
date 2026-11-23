@@ -7,8 +7,14 @@ from services.official_data import (
     load_ncs_summary,
     load_plfs_monthly_cws_wpr,
 )
+from ml.plfs_forecasting import build_plfs_wpr_forecast
 
-from fastapi import FastAPI
+from services.compact_market_data import (
+    load_compact_market_indicators,
+    load_compact_market_data_report,
+)
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from ml.predictor import predict_skill_gap
 
@@ -192,3 +198,28 @@ def official_plfs_monthly_cws_wpr():
     df = load_plfs_monthly_cws_wpr()
 
     return dataframe_to_records(df)
+@app.get("/api/official/plfs/wpr-forecast")
+def official_plfs_wpr_forecast(horizon: int = 1):
+
+    if horizon < 1 or horizon > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Horizon must be between 1 and 3 months."
+        )
+
+    try:
+        return build_plfs_wpr_forecast(
+            horizon=horizon
+        )
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
