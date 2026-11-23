@@ -1,3 +1,13 @@
+import json
+
+from services.official_data import (
+    load_plfs_state_wpr,
+    load_plfs_industry_distribution,
+    load_ncs_sector_vacancies,
+    load_ncs_qualification_vacancies,
+    load_ncs_summary,
+)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ml.predictor import predict_skill_gap
@@ -118,3 +128,61 @@ def predict(
         demand=demand,
         available_workers=available_workers
     )
+# ==========================================
+# OFFICIAL PLFS AND NCS DATA API
+# ==========================================
+
+def dataframe_to_records(df):
+    return json.loads(
+        df.to_json(orient="records")
+    )
+
+
+# PLFS: State-wise Worker Population Ratio
+
+@app.get("/api/official/plfs/state-wpr")
+def official_plfs_state_wpr():
+
+    df = load_plfs_state_wpr()
+
+    return dataframe_to_records(df)
+
+
+# PLFS: Industry-wise Employment Distribution
+
+@app.get("/api/official/plfs/industry-distribution")
+def official_plfs_industry_distribution():
+
+    df = load_plfs_industry_distribution()
+
+    return dataframe_to_records(df)
+
+
+# NCS: Sector-wise Vacancies
+
+@app.get("/api/official/ncs/sector-vacancies")
+def official_ncs_sector_vacancies():
+
+    df = load_ncs_sector_vacancies()
+
+    return dataframe_to_records(df)
+
+
+# NCS: Qualification-wise Vacancies
+
+@app.get("/api/official/ncs/qualification-vacancies")
+def official_ncs_qualification_vacancies():
+
+    df = load_ncs_qualification_vacancies()
+
+    return dataframe_to_records(df)
+
+
+# NCS: Summary Statistics
+
+@app.get("/api/official/ncs/summary")
+def official_ncs_summary():
+
+    df = load_ncs_summary()
+
+    return dataframe_to_records(df)

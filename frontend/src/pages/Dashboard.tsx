@@ -25,6 +25,7 @@ import {
   getStates,
   getIndustries,
   getSkills,
+  getSkillGaps,
 } from "../services/api";
 
 // ==========================================
@@ -57,6 +58,16 @@ type IndustryData = {
 type SkillData = {
   skill: string;
   total_demand: number;
+};
+
+type SkillGapRecord = {
+  state: string;
+  industry: string;
+  skill: string;
+  demand: number;
+  available_workers: number;
+  skill_gap: number;
+  gap_percentage: number;
 };
 
 type StateSortOption =
@@ -133,6 +144,22 @@ function Dashboard() {
     useState("");
 
   // ==========================================
+  // STATE-WISE INDUSTRY COMPARISON DATA
+  // ==========================================
+
+  const [gapRecords, setGapRecords] =
+    useState<SkillGapRecord[]>([]);
+
+  const [comparisonLoading, setComparisonLoading] =
+    useState(true);
+
+  const [comparisonError, setComparisonError] =
+    useState("");
+
+  const [selectedComparisonState, setSelectedComparisonState] =
+    useState("");
+
+  // ==========================================
   // AI PREDICTION
   // ==========================================
 
@@ -152,7 +179,7 @@ function Dashboard() {
     useState("");
 
   // ==========================================
-  // FETCH STATE-WISE DATA
+  // FETCH NATIONAL AND STATE DATA
   // ==========================================
 
   useEffect(() => {
@@ -174,17 +201,11 @@ function Dashboard() {
 
         setStateRecords(formattedData);
 
-        // Calculate national totals
         const totals = formattedData.reduce(
           (acc, item) => ({
-            demand:
-              acc.demand + item.total_demand,
-
-            workers:
-              acc.workers + item.total_workers,
-
-            gap:
-              acc.gap + item.total_gap,
+            demand: acc.demand + item.total_demand,
+            workers: acc.workers + item.total_workers,
+            gap: acc.gap + item.total_gap,
           }),
           {
             demand: 0,
@@ -295,7 +316,6 @@ function Dashboard() {
               b.total_demand - a.total_demand
           );
 
-        // Keep all skills for searching
         setSkillRecords(formattedData);
         setSkillsError("");
 
@@ -319,6 +339,63 @@ function Dashboard() {
     };
 
     fetchSkillData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // ==========================================
+  // FETCH STATE-WISE INDUSTRY DATA
+  // ==========================================
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchGapRecords = async () => {
+      try {
+        const data: SkillGapRecord[] =
+          await getSkillGaps();
+
+        if (!isMounted) return;
+
+        const formattedData = data.map((item) => ({
+          state: item.state,
+          industry: item.industry,
+          skill: item.skill,
+          demand: Number(item.demand || 0),
+          available_workers: Number(
+            item.available_workers || 0
+          ),
+          skill_gap: Number(item.skill_gap || 0),
+          gap_percentage: Number(
+            item.gap_percentage || 0
+          ),
+        }));
+
+        setGapRecords(formattedData);
+        setComparisonError("");
+
+      } catch (err) {
+        console.error(
+          "Failed to fetch state-wise industry data:",
+          err
+        );
+
+        if (isMounted) {
+          setComparisonError(
+            "Unable to load state-wise industry data."
+          );
+        }
+
+      } finally {
+        if (isMounted) {
+          setComparisonLoading(false);
+        }
+      }
+    };
+
+    fetchGapRecords();
 
     return () => {
       isMounted = false;
@@ -350,14 +427,10 @@ function Dashboard() {
           return b.total_gap - a.total_gap;
 
         case "gap_percentage":
-          return (
-            b.gap_percentage - a.gap_percentage
-          );
+          return b.gap_percentage - a.gap_percentage;
 
         case "total_demand":
-          return (
-            b.total_demand - a.total_demand
-          );
+          return b.total_demand - a.total_demand;
 
         default:
           return 0;
@@ -398,8 +471,7 @@ function Dashboard() {
 
   }, [skillRecords, skillSearch]);
 
-  // Show the top 10 by default.
-  // When searching, show all matching skills.
+  // Display top 10 normally, all matches when searching
   const displayedSkillRecords = useMemo(() => {
 
     if (skillSearch.trim()) {
@@ -417,9 +489,7 @@ function Dashboard() {
   const topShortageStates = useMemo(() => {
 
     return [...stateRecords]
-      .filter(
-        (item) => item.total_gap > 0
-      )
+      .filter((item) => item.total_gap > 0)
       .sort(
         (a, b) =>
           b.total_gap - a.total_gap
@@ -427,6 +497,67 @@ function Dashboard() {
       .slice(0, 10);
 
   }, [stateRecords]);
+
+  // ==========================================
+  // STATE-WISE INDUSTRY COMPARISON
+  // ==========================================
+
+  const comparisonStates = useMemo(() => {
+
+    return [
+      ...new Set(
+        gapRecords.map((item) => item.state)
+      ),
+    ].sort();
+
+  }, [gapRecords]);
+
+  const activeComparisonState =
+    selectedComparisonState ||
+    comparisonStates[0] ||
+    "";
+
+  const stateIndustryComparison = useMemo(() => {
+
+    const selectedRecords = gapRecords.filter(
+      (item) => item.state === activeComparisonState
+    );
+
+    const industryMap = new Map<
+      string,
+      {
+        industry: string;
+        total_demand: number;
+        total_workers: number;
+        total_gap: number;
+      }
+    >();
+
+    selectedRecords.forEach((item) => {
+
+      const existing = industryMap.get(item.industry);
+
+      if (existing) {
+
+        existing.total_demand += item.demand;
+        existing.total_workers += item.available_workers;
+        existing.total_gap += item.skill_gap;
+
+      } else {
+
+        industryMap.set(item.industry, {
+          industry: item.industry,
+          total_demand: item.demand,
+          total_workers: item.available_workers,
+          total_gap: item.skill_gap,
+        });
+
+      }
+    });
+
+    return Array.from(industryMap.values());
+
+  }, [gapRecords, activeComparisonState]);
 
   // ==========================================
   // AI SKILL GAP PREDICTION
@@ -441,7 +572,6 @@ function Dashboard() {
     const demandValue = Number(demand);
     const workersValue = Number(availableWorkers);
 
-    // Validate demand
     if (
       !Number.isFinite(demandValue) ||
       demandValue <= 0
@@ -452,7 +582,6 @@ function Dashboard() {
       return;
     }
 
-    // Validate available workers
     if (
       !Number.isFinite(workersValue) ||
       workersValue < 0
@@ -562,6 +691,7 @@ function Dashboard() {
         <section className="stats-grid">
 
           <div className="stat-card">
+
             <h3>Total Workforce Demand</h3>
 
             <h2>
@@ -569,9 +699,11 @@ function Dashboard() {
                 ? "Loading..."
                 : formatNumber(nationalStats.demand)}
             </h2>
+
           </div>
 
           <div className="stat-card">
+
             <h3>Available Workers</h3>
 
             <h2>
@@ -579,9 +711,11 @@ function Dashboard() {
                 ? "Loading..."
                 : formatNumber(nationalStats.workers)}
             </h2>
+
           </div>
 
           <div className="stat-card">
+
             <h3>Net National Skill Gap</h3>
 
             <h2
@@ -597,6 +731,7 @@ function Dashboard() {
                 ? "Loading..."
                 : formatNumber(nationalStats.gap)}
             </h2>
+
           </div>
 
         </section>
@@ -616,11 +751,13 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 INTELLIGENCE ENGINE
               </span>
 
               <h2>AI Skill Gap Predictor</h2>
+
             </div>
 
           </div>
@@ -636,6 +773,7 @@ function Dashboard() {
           >
 
             <div className="form-group">
+
               <label htmlFor="demand">
                 Workforce Demand
               </label>
@@ -651,9 +789,11 @@ function Dashboard() {
                 }
                 required
               />
+
             </div>
 
             <div className="form-group">
+
               <label htmlFor="workers">
                 Available Workers
               </label>
@@ -669,6 +809,7 @@ function Dashboard() {
                 }
                 required
               />
+
             </div>
 
             <button
@@ -768,6 +909,7 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 GEOGRAPHICAL ANALYSIS
               </span>
@@ -778,6 +920,7 @@ function Dashboard() {
                 Select a state to explore employment demand
                 and workforce availability.
               </p>
+
             </div>
 
           </div>
@@ -795,6 +938,7 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 REGIONAL WORKFORCE DATA
               </span>
@@ -805,6 +949,7 @@ function Dashboard() {
                 Compare workforce demand, available workers
                 and skill gaps across states.
               </p>
+
             </div>
 
             <span className="record-count">
@@ -836,6 +981,7 @@ function Dashboard() {
                 )
               }
             >
+
               <option value="total_gap">
                 Sort by Skill Gap
               </option>
@@ -851,6 +997,7 @@ function Dashboard() {
               <option value="state">
                 Sort Alphabetically
               </option>
+
             </select>
 
           </div>
@@ -860,6 +1007,7 @@ function Dashboard() {
             <table className="state-table">
 
               <thead>
+
                 <tr>
                   <th>State</th>
                   <th>Workforce Demand</th>
@@ -868,6 +1016,7 @@ function Dashboard() {
                   <th>Gap Percentage</th>
                   <th>Status</th>
                 </tr>
+
               </thead>
 
               <tbody>
@@ -912,6 +1061,7 @@ function Dashboard() {
                         </td>
 
                         <td>
+
                           <span
                             className={
                               gap > 0
@@ -924,6 +1074,7 @@ function Dashboard() {
                             {gap > 0 ? "+" : ""}
                             {formatNumber(gap)}
                           </span>
+
                         </td>
 
                         <td>
@@ -931,11 +1082,13 @@ function Dashboard() {
                         </td>
 
                         <td>
+
                           <span
                             className={`status-badge ${status.toLowerCase()}`}
                           >
                             {status}
                           </span>
+
                         </td>
 
                       </tr>
@@ -968,6 +1121,7 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 REGIONAL SHORTAGE INTELLIGENCE
               </span>
@@ -980,6 +1134,7 @@ function Dashboard() {
                 States ranked according to the number of
                 additional workers required.
               </p>
+
             </div>
 
             <span className="record-count">
@@ -1084,6 +1239,218 @@ function Dashboard() {
         </section>
 
         {/* ======================================
+            STATE-WISE INDUSTRY COMPARISON
+        ====================================== */}
+
+        <section className="state-industry-section">
+
+          <div className="section-heading">
+
+            <div>
+
+              <span className="section-eyebrow">
+                REGIONAL INDUSTRY INTELLIGENCE
+              </span>
+
+              <h2>
+                State-wise Industry Comparison
+              </h2>
+
+              <p>
+                Compare workforce demand and availability
+                across industries within a selected state.
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* STATE SELECTION */}
+
+          <div className="industry-filter">
+
+            <label htmlFor="comparison-state">
+              Select State
+            </label>
+
+            <select
+              id="comparison-state"
+              value={activeComparisonState}
+              onChange={(e) =>
+                setSelectedComparisonState(e.target.value)
+              }
+              disabled={comparisonStates.length === 0}
+            >
+
+              {comparisonStates.map((state) => (
+
+                <option key={state} value={state}>
+                  {state}
+                </option>
+
+              ))}
+
+            </select>
+
+          </div>
+
+          {/* COMPARISON CHART */}
+
+          {comparisonLoading ? (
+
+            <p className="loading-message">
+              Loading state-wise industry data...
+            </p>
+
+          ) : comparisonError ? (
+
+            <p className="prediction-error">
+              {comparisonError}
+            </p>
+
+          ) : stateIndustryComparison.length === 0 ? (
+
+            <p className="empty-state">
+              No industry records available for this state.
+            </p>
+
+          ) : (
+
+            <div className="industry-chart">
+
+              <ResponsiveContainer
+                width="100%"
+                height={360}
+              >
+
+                <BarChart
+                  data={stateIndustryComparison}
+                  margin={{
+                    top: 20,
+                    right: 25,
+                    left: 10,
+                    bottom: 15,
+                  }}
+                >
+
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                  />
+
+                  <XAxis
+                    dataKey="industry"
+                    stroke="#94a3b8"
+                    tick={{
+                      fill: "#cbd5e1",
+                      fontSize: 12,
+                    }}
+                  />
+
+                  <YAxis
+                    stroke="#94a3b8"
+                    tick={{
+                      fill: "#cbd5e1",
+                      fontSize: 12,
+                    }}
+                  />
+
+                  <Tooltip
+                    formatter={(value) =>
+                      formatNumber(Number(value))
+                    }
+                    contentStyle={{
+                      backgroundColor: "#0b1120",
+                      border: "1px solid #334155",
+                      borderRadius: "8px",
+                      color: "#ffffff",
+                    }}
+                  />
+
+                  <Legend />
+
+                  <Bar
+                    dataKey="total_demand"
+                    name="Workforce Demand"
+                    fill="#38bdf8"
+                    radius={[5, 5, 0, 0]}
+                  />
+
+                  <Bar
+                    dataKey="total_workers"
+                    name="Available Workers"
+                    fill="#a78bfa"
+                    radius={[5, 5, 0, 0]}
+                  />
+
+                </BarChart>
+
+              </ResponsiveContainer>
+
+            </div>
+
+          )}
+
+          {/* INDUSTRY GAP CARDS */}
+
+          {!comparisonLoading &&
+            !comparisonError &&
+            stateIndustryComparison.length > 0 && (
+
+              <div className="industry-gap-list">
+
+                {stateIndustryComparison.map((item) => {
+
+                  const status = getStatus(item.total_gap);
+
+                  return (
+
+                    <div
+                      className="industry-gap-card"
+                      key={item.industry}
+                    >
+
+                      <h3>{item.industry}</h3>
+
+                      <p>
+                        Workforce Demand:{" "}
+                        {formatNumber(item.total_demand)}
+                      </p>
+
+                      <p>
+                        Available Workers:{" "}
+                        {formatNumber(item.total_workers)}
+                      </p>
+
+                      <p>
+                        Net Skill Gap:{" "}
+                        {item.total_gap > 0 ? "+" : ""}
+                        {formatNumber(item.total_gap)}
+                      </p>
+
+                      <span
+                        className={`status-badge ${status.toLowerCase()}`}
+                      >
+                        {status}
+                      </span>
+
+                    </div>
+
+                  );
+                })}
+
+              </div>
+
+            )}
+
+          <p className="data-disclaimer">
+            Industry comparisons are calculated from
+            the selected state's employment records.
+          </p>
+
+        </section>
+
+        {/* ======================================
             INDUSTRY-WISE ANALYSIS
         ====================================== */}
 
@@ -1092,6 +1459,7 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 SECTORAL ANALYSIS
               </span>
@@ -1104,6 +1472,7 @@ function Dashboard() {
                 Compare workforce demand and availability
                 across different industries.
               </p>
+
             </div>
 
           </div>
@@ -1269,10 +1638,8 @@ function Dashboard() {
 
                       <p>
                         Net Skill Gap:{" "}
-                        <strong>
-                          {item.total_gap > 0 ? "+" : ""}
-                          {formatNumber(item.total_gap)}
-                        </strong>
+                        {item.total_gap > 0 ? "+" : ""}
+                        {formatNumber(item.total_gap)}
                       </p>
 
                       <span
@@ -1308,6 +1675,7 @@ function Dashboard() {
           <div className="section-heading">
 
             <div>
+
               <span className="section-eyebrow">
                 SKILL DEMAND INTELLIGENCE
               </span>
@@ -1320,6 +1688,7 @@ function Dashboard() {
                 Discover which skills have the highest workforce
                 demand across the available employment dataset.
               </p>
+
             </div>
 
           </div>
