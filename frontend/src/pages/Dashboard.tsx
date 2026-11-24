@@ -532,10 +532,6 @@ function Dashboard() {
     <div className="dashboard">
       <nav className="dashboard-nav">
         <h2 className="dashboard-logo">SkillPulse AI</h2>
-        <div className="nav-links">
-          <a href="/">Home</a>
-          <a href="/dashboard">Dashboard</a>
-        </div>
       </nav>
 
       <main className="dashboard-content">
