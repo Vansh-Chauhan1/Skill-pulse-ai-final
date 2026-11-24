@@ -23,7 +23,6 @@ import {
   getOfficialNcsQualificationVacancies,
   getOfficialNcsSummary,
   getOfficialPlfsWprForecast,
-  getAiForecastInterpretation,
 } from "../services/api";
 
 // ======================================================
@@ -263,11 +262,7 @@ function Dashboard() {
   const [forecastHorizon, setForecastHorizon] = useState(1);
   const [wprForecastLoading, setWprForecastLoading] = useState(true);
   const [wprForecastError, setWprForecastError] = useState("");
-
-  // AI FORECAST INTERPRETATION
-const [forecastAiInsight, setForecastAiInsight] = useState("");
-const [forecastAiLoading, setForecastAiLoading] = useState(false);
-const [forecastAiError, setForecastAiError] = useState("");
+  
 
   // ====================================================
   // FETCH OFFICIAL PLFS AND NCS DATA
@@ -403,56 +398,6 @@ const [forecastAiError, setForecastAiError] = useState("");
       isMounted = false;
     };
   }, [forecastHorizon]);
-
-    // ====================================================
-    // AI INTERPRETATION OF EMPLOYMENT FORECAST
-    // ====================================================
-
-    useEffect(() => {
-      if (!wprForecast || wprForecast.forecast.length !== forecastHorizon) {
-        setForecastAiInsight("");
-        setForecastAiError("");
-        setForecastAiLoading(false);
-        return;
-      }
-
-      let isMounted = true;
-
-      const generateForecastInsight = async () => {
-        setForecastAiLoading(true);
-        setForecastAiError("");
-        setForecastAiInsight("");
-
-        try {
-          const response =
-            await getAiForecastInterpretation(forecastHorizon);
-
-          if (isMounted) {
-            setForecastAiInsight(
-              response.answer || "AI could not generate an interpretation."
-            );
-          }
-        } catch (error) {
-          console.error("Forecast AI interpretation failed:", error);
-
-          if (isMounted) {
-            setForecastAiError(
-              "Unable to generate AI forecast interpretation."
-            );
-          }
-        } finally {
-          if (isMounted) {
-            setForecastAiLoading(false);
-          }
-        }
-      };
-
-      generateForecastInsight();
-
-      return () => {
-        isMounted = false;
-      };
-    }, [forecastHorizon, wprForecast]);
 
   // ====================================================
   // PLFS NATIONAL AND STATE RECORDS
@@ -775,42 +720,6 @@ const [forecastAiError, setForecastAiError] = useState("");
               </div>
 
               <h3 className="forecast-subheading">Forecast Results</h3>
-              {/* SKILLPULSE AI FORECAST INTERPRETATION */}
-<div className="forecast-ai-panel">
-  <div className="forecast-ai-header">
-    <div>
-      <span className="section-eyebrow">
-        SKILLPULSE AI INTELLIGENCE
-      </span>
-      <h3>AI-Powered Employment Outlook</h3>
-    </div>
-
-    <span className="live-indicator">
-      AI ANALYSIS
-    </span>
-  </div>
-
-  {forecastAiLoading ? (
-    <p className="loading-message">
-      SkillPulse AI is analysing forecast results...
-    </p>
-  ) : forecastAiError ? (
-    <p className="prediction-error">
-      {forecastAiError}
-    </p>
-  ) : (
-    <div className="forecast-ai-content">
-      {forecastAiInsight.split("\n").map((line, index) => (
-        <p key={index}>{line || "\u00A0"}</p>
-      ))}
-    </div>
-  )}
-
-  <p className="data-disclaimer">
-    AI interpretation is generated from the statistical forecast
-    and its validation results. It is not an official government projection.
-  </p>
-</div>
               <div className="table-scroll">
                 <table className="state-table">
                   <thead>
