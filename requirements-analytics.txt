@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-pandas
-numpy
-openai
-python-dotenv
-httpx
