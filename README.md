@@ -93,8 +93,9 @@ The system is intentionally grounded: it does not estimate a skill gap merely by
 | ✅ Implemented | Naive baseline comparison | The lowest-error rolling-origin model is selected as the primary forecast; it may be a flat naive forecast. |
 | ✅ Implemented | Forecast validation | Expanding-window backtesting reports MAE, RMSE, and sMAPE. |
 | ✅ Implemented | Conversational AI assistant | The local assistant detects intent, retrieves relevant context, and produces grounded natural-language summaries. |
-| ⚠️ Prototype/sample | Legacy skill-gap analytics | `/api/skill-gaps`, state, industry, skill, shortage, surplus, and `/api/predict` use a small illustrative employment CSV. |
-| ⚠️ Illustrative | Legacy prediction model | A model artifact and training script exist, but they must not be presented as official or validated national skill-gap modelling. |
+| ⚠️ Prototype/sample | Legacy skill-gap analytics | `/api/skill-gaps`, state, industry, skill, shortage, and surplus endpoints use a small illustrative employment CSV. |
+| ⚠️ Prototype/sample | Legacy `/api/predict` | Compares caller-supplied demand and worker counts arithmetically; it is not a trained model or an official skill-gap estimate. |
+| 🧪 Legacy artifact | ML training code and model file | A Random Forest training script and `.pkl` artifact exist, but the active `/api/predict` endpoint does not load that artifact. Neither is validated as national skill-gap modelling. |
 | 🧭 Future | Personalized career guidance | Not implemented as a user-specific recommendation engine. |
 
 ### Feature Overview
@@ -167,7 +168,7 @@ sequenceDiagram
 <details>
 <summary><strong>Important implementation distinction</strong></summary>
 
-The backend environment still contains optional LLM-provider configuration fields in `.env.example`, but the actual current `llm_status()` implementation reports:
+The backend environment example contains LLM-provider configuration fields, but the actual current `llm_status()` implementation reports:
 
 - Provider: `skillpulse-local`
 - Model: `SkillPulse Intelligence Engine`
@@ -235,13 +236,16 @@ The API returns:
 
 | Source | Coverage | Repository file family | Interpretation |
 |---|---|---|---|
-| Periodic Labour Force Survey (PLFS) 2023–24 | State WPR, industry distribution, monthly CWS WPR | `skillpulse_official_data_pack/raw/plfs/` and `backend/data/raw/plfs/` | Official report values or source-attributed observations. WPR is a percentage, not a worker headcount. |
+| Periodic Labour Force Survey (PLFS) | Annual state WPR for 2025; 2023–24 state WPR in the reference pack; industry distribution for 2021–24; monthly CWS WPR observations for 2025–26 | `skillpulse_official_data_pack/raw/plfs/` and `backend/data/raw/plfs/` | Official report values or source-attributed observations. WPR is a percentage, not a worker headcount. |
 | National Career Service (NCS) | Sector and qualification vacancies for FY 2022–23 and FY 2023–24 | `skillpulse_official_data_pack/raw/ncs/` and `backend/data/raw/ncs/` | Vacancies mobilised through the NCS platform, not all vacancies in India. |
 
-Official reports in the repository's data dictionary:
+Official reports and source references:
 
+- [PLFS Annual Report 2025](https://mospi.gov.in/uploads/publications_reports/publications_reports1780040415321_0624fb13-fb47-40bc-b470-7c7e9635c3ef_PLFS_2025_F_REV_29052026.pdf) — source for the backend's 2025 state-wise WPR table.
 - [PLFS Annual Report 2023–24](https://mospi.gov.in/sites/default/files/publication_reports/AnnualReport_PLFS2023-24L2.pdf)
-- [NCS Comparative Statistics FY 2022–23 and FY 2023–24](https://www.ncs.gov.in/Documents/NCS-Statistics-2022-23-24.pdf)
+- [National Career Service portal](https://www.ncs.gov.in/) — the NCS Comparative Statistics report for FY 2022–23 and FY 2023–24. The source URL retained in the CSV metadata is `https://www.ncs.gov.in/Documents/NCS-Statistics-2022-23-24.pdf`.
+
+The monthly PLFS CSV retains a source document and URL for each observation because its values are attributed to different monthly bulletins and press notes. The NCS report URL currently redirects to the portal home page; publishers may move report files, so the source report title and original URL are retained in the dataset.
 
 ### Data Classification
 
@@ -269,7 +273,7 @@ Official reports in the repository's data dictionary:
 | Routing | React Router | Client-side navigation |
 | HTTP client | Axios | API communication |
 | Charts | Recharts | Dashboard visualizations |
-| Maps | React Leaflet, Leaflet, React Simple Maps | Interactive geographical views |
+| Maps | React Simple Maps | Interactive India state map |
 | Markdown rendering | React Markdown, Remark GFM | Assistant response presentation |
 | Backend | Python | API, data processing, analytics |
 | API framework | FastAPI | HTTP endpoints and OpenAPI documentation |
@@ -279,7 +283,7 @@ Official reports in the repository's data dictionary:
 
 ### Additional Backend Files
 
-The backend requirements also include `python-dotenv`, `httpx`, and `openai`; do not interpret their presence as evidence that the current assistant calls an external OpenAI model. The local assistant implementation reports `skillpulse-local` and does not require an external LLM key for its current deterministic response path.
+The backend requirements also include `python-dotenv`, `httpx`, and `openai`; do not interpret their presence as evidence that the current assistant calls an external OpenAI model. The local assistant implementation reports `skillpulse-local` and does not require an external LLM key for its current deterministic response path. The legacy training script imports scikit-learn and joblib, which are not listed in the standard backend requirements and are not needed by the active API prediction endpoint.
 
 ---
 
@@ -320,13 +324,21 @@ The compact data pipeline normalizes indicators while preserving source units an
 ```text
 Skill-pulse-ai-final/
 ├── backend/
-│   ├── analysis/                 # Additional analysis resources
-│   ├── data/                     # Runtime CSV datasets, metadata and raw official files
+│   ├── analysis/                 # Data exploration, preprocessing and feature engineering
+│   ├── data/
+│   │   ├── raw/
+│   │   │   ├── ncs/              # NCS sector, qualification and summary CSVs
+│   │   │   └── plfs/             # PLFS state WPR, industry and monthly CWS CSVs
+│   │   ├── processed/
+│   │   │   ├── compact_market_data_report.json
+│   │   │   └── compact_market_indicators.csv
+│   │   ├── metadata/source_manifest.csv
+│   │   ├── __init__.py
 │   │   ├── employment_data.csv   # Illustrative legacy skill-gap prototype data
+│   │   ├── employment_data.py
 │   │   ├── ml_features.csv       # Legacy/sample feature data
-│   │   ├── metadata/             # Source metadata
-│   │   ├── raw/                  # Backend-runtime PLFS and NCS files
-│   │   └── processed/            # Processed data artifacts
+│   │   ├── processed_employment_data.csv
+│   │   └── validate_data.py
 │   ├── ml/                       # Forecasting and legacy model files
 │   │   ├── plfs_forecasting.py
 │   │   ├── predictor.py
@@ -342,7 +354,7 @@ Skill-pulse-ai-final/
 │   │   ├── official_data.py
 │   │   ├── sector_demand_engine.py
 │   │   └── skill_gap.py
-│   ├── schemas/                  # Pydantic and API schema resources
+│   ├── schemas/                  # API response schemas
 │   ├── tests/                    # Backend tests
 │   ├── main.py                   # FastAPI application entry point
 │   ├── requirements-analytics.txt
@@ -350,29 +362,43 @@ Skill-pulse-ai-final/
 │   ├── run_checks.ps1
 │   └── skillpulse_api_smoke_test.ps1
 ├── frontend/
-│   ├── public/                   # Static public assets
+│   ├── public/
+│   │   ├── india-states.geojson  # Map geometry
+│   │   ├── favicon.svg
+│   │   └── icons.svg
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── chat/             # Chat UI components
+│   │   │   ├── chat/             # Chat UI, message types and hook
 │   │   │   ├── EmploymentDashboard.tsx
 │   │   │   ├── IndiaSkillMap.tsx
 │   │   │   └── BackendStatus.tsx
 │   │   ├── pages/
 │   │   │   └── Dashboard.tsx
-│   │   ├── services/             # Frontend API service modules
-│   │   ├── types/                # TypeScript types
+│   │   ├── services/api.ts       # Axios API client and endpoint functions
+│   │   ├── types/index.ts
+│   │   ├── assets/
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
 │   │   ├── App.tsx
 │   │   └── main.tsx
+│   ├── index.html
+│   ├── eslint.config.js
 │   ├── package.json
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── tsconfig.node.json
 │   └── vite.config.ts
 ├── skillpulse_official_data_pack/
-│   ├── raw/plfs/
-│   ├── raw/ncs/
+│   ├── raw/plfs/                  # Source-attributed PLFS reference CSVs
+│   ├── raw/ncs/                   # Source-attributed NCS reference CSVs
 │   ├── metadata/
-│   └── README_DATA_DICTIONARY.md
-├── package.json                  # Root convenience scripts
+│   ├── README_DATA_DICTIONARY.md
+│   └── skillpulse_official_data_pack/  # Nested duplicate reference copy
+├── package.json                  # Root frontend dev/build convenience scripts
 ├── package-lock.json
-└── .gitignore
+├── .gitignore
+└── README.md
 ```
 
 > The repository also contains committed virtual-environment and `node_modules` directories; these are not recommended as a fresh setup path and should be excluded or removed in future repository cleanup.
@@ -384,7 +410,7 @@ Skill-pulse-ai-final/
 ### Prerequisites
 
 - Python 3.10 or newer recommended
-- Node.js 18 or newer recommended
+- Node.js 20.19+ or 22.12+ (required by the checked-in Vite 8 version)
 - npm
 - Git
 
@@ -425,20 +451,15 @@ Backend API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/do
 
 ### 3. Configure environment variables
 
-Edit `backend/.env`. The current local assistant does not use external LLM keys.
+Edit `backend/.env` only if you need to change backend settings. The current local assistant does not use external LLM keys.
 
 | Variable | Purpose | Example |
 |---|---|---|
-| `LLM_PROVIDER` | Reserved provider setting in the example configuration | `openai` |
-| `LLM_API_KEY` | External provider key, if an external provider is later enabled | `<secret>` |
-| `LLM_MODEL` | External model identifier, if used | `<model>` |
 | `FRONTEND_ORIGINS` | Comma-separated extra frontend origins | `https://example.com` |
-| `LLM_TIMEOUT_SECONDS` | Optional timeout setting | `45` |
-| `LLM_MAX_TOKENS` | Optional token setting | `1500` |
 | `AI_RATE_LIMIT_PER_MINUTE` | Per-client chat limiter | `15` |
 | `AI_DEBUG_CONTEXT` | Enables `/api/ai/debug-context` | `false` |
 
-Never commit real API keys or the `.env` file.
+`LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`, and `LLM_MAX_TOKENS` appear in `.env.example` but are not consumed by the current local assistant implementation. They are not required to run the application. Never commit secrets or the `.env` file.
 
 ### 4. Configure and start the frontend
 
@@ -532,7 +553,7 @@ The main FastAPI application is in `backend/main.py`. Interactive OpenAPI docume
 | `/api/skills` | GET | Prototype demanded-skill totals | Illustrative |
 | `/api/shortages` | GET | Prototype shortage rows | Illustrative |
 | `/api/surpluses` | GET | Prototype surplus rows | Illustrative |
-| `/api/predict` | GET | Prototype demand-versus-workers prediction | Illustrative model behavior; not an official skill-gap estimate |
+| `/api/predict` | GET | Arithmetic comparison of supplied demand and available-worker counts | Prototype only; not a trained model or an official skill-gap estimate |
 
 ---
 
